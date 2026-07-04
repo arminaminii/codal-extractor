@@ -150,7 +150,7 @@ def fetch_announcements_from_codal(symbol: str) -> list[dict]:
                 timeout=timeout,
             )
             if response.status_code == 429:
-                wait = 3 * attempt  # 3s, 6s, 9s
+                wait = 10 * (2 ** (attempt - 1))  # 10s, 20s, 40s
                 logger.warning(
                     "429 rate-limit for %s page %d. Waiting %ds before retry %d/%d",
                     symbol, page, wait, attempt, MAX_RETRIES,
