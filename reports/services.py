@@ -9,39 +9,35 @@ from .models import Announcement
 
 logger = logging.getLogger(__name__)
 
-# --- URL و هدرهای ثابت API کدال ---
+# --- آدرس API کدال (بر اساس کتابخانه codalpy و codaler) ---
 CODAL_SEARCH_URL = "https://search.codal.ir/api/search/v2/q"
 
-DEFAULT_PAYLOAD = {
-    "Publisher": False,
+# --- پارامترهای پیش‌فرض (بر اساس سورس‌کد واقعی codalpy) ---
+# مرجع: https://github.com/yghaderi/codalpy/blob/master/codalpy/utils/query.py
+DEFAULT_PARAMS = {
     "Category": -1,
-    "CompanyState": -1,
-    "CompanyType": -1,
-    "AuditorRef": -1,
-    "PageChanging": True,
-    "AuditType": -1,
-    "Consolidatable": True,
-    "NotAudited": True,
-    "IsNotAudited": False,
-    "Childs": True,
-    "Mains": True,
-    "TracingNo": -1,
-    "CompanySearchType": 0,
-    "SymbolSearchType": 0,
+    "PublisherType": 1,        # ناشران — این پارامتر الزامی است
     "LetterType": -1,
+    "Audited": True,
+    "NotAudited": True,
+    "Mains": True,
+    "Childs": False,
+    "Consolidatable": True,
+    "NotConsolidatable": True,
+    "AuditorRef": -1,
+    "CompanyState": 0,         # 0 = فعال
+    "CompanyType": -1,
+    "TracingNo": -1,
+    "Publisher": False,
+    "IsNotAudited": False,
 }
 
 HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "Mozilla/5.0 (X11; Linux x86_64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/131.0.0.0 Safari/537.36"
+        "Chrome/112.0.0.0 Safari/537.36"
     ),
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "fa-IR,fa;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Content-Type": "application/json;charset=UTF-8",
-    "Referer": "https://codal.ir/",
-    "Origin": "https://codal.ir",
 }
 
 
@@ -60,37 +56,18 @@ def _parse_codal_date(date_str: str) -> datetime | None:
     return None
 
 
-def _build_direct_link(symbol: str, letter_code: str, tracing_no: int) -> str:
+def fetch_announcements_from_codal(
+    symbol: str, length: int = -1, page: int = 1
+) -> list[dict]:
     """
-    ساخت لینک مستقیم هر گزارش بر اساس الگوی URL کدال.
-    """
-    return (
-        f"https://codal.ir/ReportList.aspx?"
-        f"search&Symbol={symbol}"
-        f"&LetterCode={letter_code}"
-        f"&CompanyState=-1"
-        f"&CompanyType=-1"
-        f"&PageNumber=1"
-        f"&AuditorRef=-1"
-        f"&PageChanging=true"
-        f"&Category=-1"
-        f"&Length=-1"
-        f"&AuditType=-1"
-        f"&NotAudited=false"
-        f"&IsNotAudited=true"
-        f"&Childs=true"
-        f"&Mains=true"
-        f"&TracingNo={tracing_no}"
-    )
+    ارسال درخواست GET به API کدال و دریافت لیست اطلاعیه‌ها.
 
-
-def fetch_announcements_from_codal(symbol: str, length: int = 50, page: int = 1) -> list[dict]:
-    """
-    ارسال درخواست به API کدال و دریافت لیست اطلاعیه‌ها.
+    مرجع: https://github.com/yghaderi/codalpy
+    مرجع: https://github.com/mostafaasadi/codaler
 
     Args:
         symbol: نام نماد بورسی (مثلاً "فولاد")
-        length: تعداد نتایج درخواستی (پیش‌فرض ۵۰)
+        length: تعداد نتایج درخواستی (پیش‌فرض -1 = همه)
         page: شماره صفحه (پیش‌فرض ۱)
 
     Returns:
@@ -98,20 +75,23 @@ def fetch_announcements_from_codal(symbol: str, length: int = 50, page: int = 1)
 
     Raises:
         requests.RequestException: در صورت بروز خطای شبکه
-        ValueError: در صورت نامعتبر بودن پاسخ
     """
-    payload = {
-        **DEFAULT_PAYLOAD,
+    params = {
+        **DEFAULT_PARAMS,
         "Symbol": symbol,
         "Length": length,
         "PageNumber": page,
     }
 
-    logger.info("ارسال درخواست POST به API کدال برای نماد: %s", symbol)
+    logger.info(
+        "ارسال درخواست GET به API کدال برای نماد: %s | پارامترها: %s",
+        symbol,
+        params,
+    )
 
-    response = requests.post(
+    response = requests.get(
         CODAL_SEARCH_URL,
-        json=payload,
+        params=params,
         headers=HEADERS,
         timeout=getattr(settings, "CODAL_REQUEST_TIMEOUT", 30),
     )
@@ -120,7 +100,7 @@ def fetch_announcements_from_codal(symbol: str, length: int = 50, page: int = 1)
     data = response.json()
 
     if "Letters" not in data:
-        logger.warning("پاسخ API کدال فیلد Letters ندارد. پاسخ: %s", str(data)[:200])
+        logger.warning("پاسخ API کدال فیلد Letters ندارد. پاسخ: %s", str(data)[:300])
         return []
 
     letters = data.get("Letters", [])
@@ -132,19 +112,24 @@ def fetch_announcements_from_codal(symbol: str, length: int = 50, page: int = 1)
             continue
 
         publish_date = _parse_codal_date(item.get("PublishDateTime", ""))
-
         letter_code = item.get("LetterCode", "")
 
-        # ساخت لینک مستقیم
-        direct_link = _build_direct_link(
-            symbol=symbol,
-            letter_code=letter_code,
-            tracing_no=tracing_no,
-        )
-
-        # اگر URL مستقیم در پاسخ وجود داشت، آن را جایگزین کن
-        if item.get("Url"):
-            direct_link = item["Url"]
+        # ساخت لینک مستقیم (codalpy از فیلد Url استفاده می‌کند)
+        raw_url = item.get("Url", "")
+        if raw_url:
+            # URL نسبی است، آدرس کامل می‌سازیم
+            if raw_url.startswith("/"):
+                direct_link = f"https://www.codal.ir{raw_url}"
+            else:
+                direct_link = raw_url
+        else:
+            # لینک‌سازی دستی بر اساس الگوی کدال
+            direct_link = (
+                f"https://codal.ir/ReportList.aspx?"
+                f"search&Symbol={symbol}"
+                f"&LetterCode={letter_code}"
+                f"&TracingNo={tracing_no}"
+            )
 
         results.append(
             {
@@ -163,7 +148,7 @@ def fetch_announcements_from_codal(symbol: str, length: int = 50, page: int = 1)
 
 def save_announcements_to_db(announcements_data: list[dict]) -> int:
     """
-    ذخیره یا بروزرسانی اطلاعیه‌ها در دیتابیس با استفاده از bulk_create / update_or_create.
+    ذخیره یا بروزرسانی اطلاعیه‌ها در دیتابیس.
 
     Args:
         announcements_data: لیست دیکشنری‌های خروجی تابع fetch_announcements_from_codal
@@ -201,7 +186,7 @@ def save_announcements_to_db(announcements_data: list[dict]) -> int:
 def get_or_fetch_announcements(symbol: str) -> list[Announcement]:
     """
     تابع اصلی: ابتدا دیتابیس را چک می‌کند.
-    اگر رکوردی وجود نداشت یا قدیمی بود، از API کدال می‌گیرد و ذخیره می‌کند.
+    اگر رکوردی وجود نداشت، از API کدال می‌گیرد و ذخیره می‌کند.
 
     Args:
         symbol: نام نماد بورسی
