@@ -55,6 +55,14 @@ def _parse_codal_date(date_str: str) -> datetime | None:
     return None
 
 
+def _normalize_persian(text: str) -> str:
+    """Fix common Arabic → Persian character issues."""
+    text = text.replace("\u064a", "\u06cc")  # ی Arabic → ی Persian
+    text = text.replace("\u0643", "\u06a9")  # ک Arabic → ک Persian
+    text = text.replace("\u0629", "\u0647")  # ة → ه
+    return text
+
+
 def fetch_announcements_from_codal(symbol: str) -> list[dict]:
     """
     Fetch announcements from Codal API for a given symbol.
@@ -65,6 +73,8 @@ def fetch_announcements_from_codal(symbol: str) -> list[dict]:
     Raises:
         requests.RequestException: On network error
     """
+    # Normalize symbol before sending to Codal
+    symbol = _normalize_persian(symbol)
     params = {**DEFAULT_PARAMS, "Symbol": symbol}
 
     logger.info("Fetching Codal API for symbol: %s", symbol)
@@ -312,7 +322,7 @@ def search_companies(query: str, limit: int = 12, sector: str = "") -> list[dict
     if not query or len(query) < 1:
         return []
 
-    query_clean = query.strip()
+    query_clean = _normalize_persian(query.strip())
     query_lower = query_clean.lower()
 
     # Sector filter
