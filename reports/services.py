@@ -63,41 +63,15 @@ def _normalize_persian(text: str) -> str:
     return text
 
 
-def fetch_announcements_from_codal(symbol: str) -> list[dict]:
-    """
-    Fetch announcements from Codal API for a given symbol.
+# Codal returns max ~20 per page. We paginate until a page returns fewer items.
+CODAL_PAGE_SIZE = 20
+CODAL_MAX_PAGES = 50  # safety limit (50 * 20 = 1000 max)
 
-    Simple single-request: Length=-1, PageNumber=1.
-    Based on: github.com/yghaderi/codalpy
 
-    Raises:
-        requests.RequestException: On network error
-    """
-    # Normalize symbol before sending to Codal
-    symbol = _normalize_persian(symbol)
-    params = {**DEFAULT_PARAMS, "Symbol": symbol}
-
-    logger.info("Fetching Codal API for symbol: %s", symbol)
-
-    response = requests.get(
-        CODAL_SEARCH_URL,
-        params=params,
-        headers=HEADERS,
-        timeout=getattr(settings, "CODAL_REQUEST_TIMEOUT", 30),
-    )
-    response.raise_for_status()
-
-    data = response.json()
-
-    if "Letters" not in data:
-        logger.warning(
-            "Codal API response missing 'Letters' for %s. Response: %s",
-            symbol, str(data)[:300],
-        )
-        return []
-
+def _parse_codal_letters(symbol: str, letters_data: list) -> list[dict]:
+    """Parse a list of raw letter items from Codal API into our format."""
     results = []
-    for item in data["Letters"]:
+    for item in letters_data:
         tracing_no = item.get("TracingNo")
         if not tracing_no:
             continue
@@ -128,12 +102,93 @@ def fetch_announcements_from_codal(symbol: str) -> list[dict]:
             "direct_link": direct_link,
             "letter_code": letter_code,
         })
+    return results
+
+
+def fetch_announcements_from_codal(symbol: str) -> list[dict]:
+    """
+    Fetch ALL announcements from Codal API for a given symbol.
+
+    Pagination strategy:
+      - Codal API returns max ~20 results per page.
+      - We start at PageNumber=1 and increment until we get fewer than 20.
+      - All other params stay the same (Length=-1, PublisherType=1, etc.)
+      - Dedup by TracingNo in case of overlap.
+
+    Based on: github.com/yghaderi/codalpy
+
+    Raises:
+        requests.RequestException: On network error
+    """
+    # Normalize symbol before sending to Codal
+    symbol = _normalize_persian(symbol)
+    timeout = getattr(settings, "CODAL_REQUEST_TIMEOUT", 30)
+
+    all_results = []
+    seen_tracing_nos = set()
+
+    for page in range(1, CODAL_MAX_PAGES + 1):
+        params = {
+            **DEFAULT_PARAMS,
+            "Symbol": symbol,
+            "PageNumber": page,
+        }
+
+        logger.info(
+            "Fetching Codal API for symbol: %s (page %d)",
+            symbol, page,
+        )
+
+        response = requests.get(
+            CODAL_SEARCH_URL,
+            params=params,
+            headers=HEADERS,
+            timeout=timeout,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+
+        if "Letters" not in data:
+            logger.warning(
+                "Codal API response missing 'Letters' for %s page %d. Response: %s",
+                symbol, page, str(data)[:300],
+            )
+            break
+
+        letters = data["Letters"]
+        if not letters:
+            logger.info(
+                "No more results for %s at page %d — stopping.",
+                symbol, page,
+            )
+            break
+
+        page_results = _parse_codal_letters(symbol, letters)
+
+        # Dedup by TracingNo
+        new_count = 0
+        for r in page_results:
+            tid = r["tracking_id"]
+            if tid not in seen_tracing_nos:
+                seen_tracing_nos.add(tid)
+                all_results.append(r)
+                new_count += 1
+
+        logger.info(
+            "Page %d: %d raw, %d new unique (total: %d) for symbol %s",
+            page, len(page_results), new_count, len(all_results), symbol,
+        )
+
+        # If we got fewer than the expected page size, we've reached the end
+        if len(letters) < CODAL_PAGE_SIZE:
+            break
 
     logger.info(
-        "Received %d announcements for symbol %s from Codal API",
-        len(results), symbol,
+        "Total: %d unique announcements for symbol %s",
+        len(all_results), symbol,
     )
-    return results
+    return all_results
 
 
 def save_announcements_to_db(announcements_data: list[dict]) -> int:
