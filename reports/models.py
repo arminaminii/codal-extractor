@@ -28,7 +28,9 @@ class Announcement(models.Model):
 
     publish_date = models.DateTimeField(
         verbose_name="تاریخ انتشار",
-        help_text="تاریخ و ساعت انتشار اطلاعیه"
+        help_text="تاریخ و ساعت انتشار اطلاعیه",
+        null=True,
+        blank=True,
     )
 
     direct_link = models.URLField(
