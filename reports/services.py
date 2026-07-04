@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import requests
 from django.conf import settings
 
-from .models import Announcement
+from .models import Announcement, Company
 
 logger = logging.getLogger(__name__)
 
@@ -221,3 +221,47 @@ def get_or_fetch_announcements(symbol: str) -> list[Announcement]:
     return list(
         Announcement.objects.filter(symbol=symbol).order_by("-publish_date")
     )
+
+
+def search_companies(query: str, limit: int = 8) -> list[dict]:
+    """
+    جستجوی شرکت‌ها بر اساس نماد یا نام شرکت (برای autocomplete).
+    """
+    if not query or len(query) < 1:
+        return []
+
+    query_lower = query.lower()
+    companies = Company.objects.filter(
+        models.Q(symbol__icontains=query_lower) |
+        models.Q(name__icontains=query_lower)
+    )[:limit]
+
+    return [
+        {
+            "symbol": c.symbol,
+            "name": c.name,
+            "sector": c.sector,
+            "sector_icon": c.sector_icon,
+        }
+        for c in companies
+    ]
+
+
+def resolve_search_query(query: str) -> str:
+    """
+    اگر کاربر نام شرکت را تایپ کرد، نماد مربوطه را برمی‌گرداند.
+    در غیر این صورت همان عبارت را برمی‌گرداند.
+    """
+    # اول جستجوی دقیق بر اساس نماد
+    try:
+        company = Company.objects.get(symbol=query.strip())
+        return company.symbol
+    except Company.DoesNotExist:
+        pass
+
+    # جستجو بر اساس نام شرکت
+    matches = Company.objects.filter(name__icontains=query.strip())[:1]
+    if matches:
+        return matches[0].symbol
+
+    return query.strip()

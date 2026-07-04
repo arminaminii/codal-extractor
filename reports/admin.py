@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Announcement
+from .models import Announcement, Company
 
 
 @admin.register(Announcement)
@@ -15,3 +15,9 @@ class AnnouncementAdmin(admin.ModelAdmin):
         if len(obj.title) > 80:
             return obj.title[:80] + "..."
         return obj.title
+
+
+@admin.register(Company)
+class CompanyAdmin(admin.ModelAdmin):
+    list_display = ("symbol", "name", "sector", "sector_icon")
+    search_fields = ("symbol", "name", "sector")

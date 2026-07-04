@@ -4,19 +4,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}سامانه استخراج اطلاعیه‌های کدال{% endblock %}</title>
+    <title>{% block title %}کدال اکسپرت | استخراج لحظه‌ای اطلاعیه‌های بورسی{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
+    <!-- Animated Background Grid -->
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
     <header class="site-header">
         <div class="container">
-            <div class="header-content">
-                <h1 class="site-logo">
-                    <span class="logo-icon">📊</span>
-                    کدال اکسپرت
-                </h1>
-                <p class="site-subtitle">استخراج در لحظه اطلاعیه‌های بورسی</p>
+            <div class="header-inner">
+                <div class="logo-section">
+                    <div class="logo-icon-wrap">
+                        <svg viewBox="0 0 40 40" class="logo-chart">
+                            <polyline points="2,32 10,22 18,26 26,10 34,16 38,6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="38" cy="6" r="3" fill="currentColor" opacity="0.8"/>
+                            <circle cx="2" cy="32" r="2" fill="currentColor" opacity="0.4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="site-logo">کدال اکسپرت</h1>
+                        <p class="site-subtitle">استخراج لحظه‌ای اطلاعیه‌های بورسی</p>
+                    </div>
+                </div>
+                <div class="header-stats">
+                    <div class="stat-pill">
+                        <span class="stat-dot"></span>
+                        <span>اتصال فعال</span>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
@@ -29,8 +48,14 @@
 
     <footer class="site-footer">
         <div class="container">
-            <p>سامانه استخراج اطلاعیه‌های کدال &copy; ۱۴۰۴</p>
+            <div class="footer-inner">
+                <p>سامانه استخراج اطلاعیه‌های کدال &copy; ۱۴۰۴</p>
+                <p class="footer-note">داده‌ها مستقیماً از <a href="https://codal.ir" target="_blank" rel="noopener">codal.ir</a> استخراج می‌شوند</p>
+            </div>
         </div>
     </footer>
+
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

@@ -67,3 +67,17 @@ class Announcement(models.Model):
 
     def __str__(self):
         return f"[{self.symbol}] {self.title[:60]}..."
+
+
+class Company(models.Model):
+    symbol = models.CharField(max_length=50, primary_key=True, verbose_name="نماد")
+    name = models.CharField(max_length=200, verbose_name="نام شرکت")
+    sector = models.CharField(max_length=100, verbose_name="صنعت")
+    sector_icon = models.CharField(max_length=10, default="📊", verbose_name="آیکون صنعت")
+
+    class Meta:
+        verbose_name = "شرکت"
+        verbose_name_plural = "شرکت‌ها"
+
+    def __str__(self):
+        return f"{self.symbol} - {self.name}"
