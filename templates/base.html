@@ -1,0 +1,36 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}سامانه استخراج اطلاعیه‌های کدال{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="site-logo">
+                    <span class="logo-icon">📊</span>
+                    کدال اکسپرت
+                </h1>
+                <p class="site-subtitle">استخراج در لحظه اطلاعیه‌های بورسی</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>سامانه استخراج اطلاعیه‌های کدال &copy; ۱۴۰۴</p>
+        </div>
+    </footer>
+</body>
+</html>

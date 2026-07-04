@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}جستجوی اطلاعیه‌ها - کدال اکسپرت{% endblock %}
+
+{% block content %}
+<section class="search-section">
+    <form method="get" action="{% url 'home' %}" class="search-form" id="searchForm">
+        <div class="search-box">
+            <input
+                type="text"
+                name="symbol"
+                id="symbolInput"
+                value="{{ symbol_query }}"
+                placeholder="نام نماد را وارد کنید... (مثلاً فولاد)"
+                class="search-input"
+                autocomplete="off"
+                autofocus
+                required
+                maxlength="100"
+            >
+            <button type="submit" class="search-btn" id="searchBtn">
+                <span class="btn-text">جستجو</span>
+                <span class="btn-loader" id="searchLoader" style="display: none;">
+                    <span class="spinner"></span>
+                </span>
+            </button>
+        </div>
+    </form>
+
+    {% if error_message %}
+    <div class="alert alert-error">
+        <span class="alert-icon">⚠️</span>
+        <p>{{ error_message }}</p>
+    </div>
+    {% endif %}
+
+    {% if symbol_query and not error_message %}
+    <div class="results-header">
+        <h2>اطلاعیه‌های نماد <span class="highlight">«{{ symbol_query }}»</span></h2>
+        <span class="results-count">تعداد: {{ total_results }} اطلاعیه</span>
+    </div>
+
+    {% if announcements %}
+    <div class="results-table-wrapper">
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th class="col-row">#</th>
+                    <th class="col-title">عنوان اطلاعیه</th>
+                    <th class="col-code">کد نامه</th>
+                    <th class="col-date">تاریخ انتشار</th>
+                    <th class="col-action">لینک</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for announcement in announcements %}
+                <tr class="result-row">
+                    <td class="col-row">{{ forloop.counter }}</td>
+                    <td class="col-title">
+                        <span class="announcement-title">{{ announcement.title }}</span>
+                        <span class="announcement-tracking">شناسه: {{ announcement.tracking_id }}</span>
+                    </td>
+                    <td class="col-code">
+                        {% if announcement.letter_code %}
+                        <span class="letter-code-badge">{{ announcement.letter_code }}</span>
+                        {% else %}
+                        <span class="muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="col-date">
+                        <span class="persian-date">{{ announcement.publish_date|date:"Y/m/d - H:i" }}</span>
+                    </td>
+                    <td class="col-action">
+                        <a
+                            href="{{ announcement.direct_link }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="view-link"
+                        >
+                            مشاهده در کدال ↗
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% endif %}
+</section>
+
+<script>
+    // نمایش لودینگ هنگام جستجو
+    const searchForm = document.getElementById('searchForm');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchLoader = document.getElementById('searchLoader');
+    const btnText = searchBtn.querySelector('.btn-text');
+    const symbolInput = document.getElementById('symbolInput');
+
+    searchForm.addEventListener('submit', function(e) {
+        const query = symbolInput.value.trim();
+        if (!query) {
+            e.preventDefault();
+            return;
+        }
+        btnText.style.display = 'none';
+        searchLoader.style.display = 'inline-flex';
+        searchBtn.disabled = true;
+    });
+</script>
+{% endblock %}
