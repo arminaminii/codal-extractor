@@ -12,23 +12,23 @@ logger = logging.getLogger(__name__)
 # --- URL و هدرهای ثابت API کدال ---
 CODAL_SEARCH_URL = "https://search.codal.ir/api/search/v2/q"
 
-DEFAULT_QUERY_PARAMS = {
-    "Publisher": "false",
-    "Category": "-1",
-    "CompanyState": "-1",
-    "CompanyType": "-1",
-    "AuditorRef": "-1",
-    "PageChanging": "true",
-    "AuditType": "-1",
-    "Consolidatable": "true",
-    "NotAudited": "true",
-    "IsNotAudited": "false",
-    "Childs": "true",
-    "Mains": "true",
-    "TracingNo": "-1",
-    "CompanySearchType": "0",
-    "SymbolSearchType": "0",
-    "LetterType": "-1",
+DEFAULT_PAYLOAD = {
+    "Publisher": False,
+    "Category": -1,
+    "CompanyState": -1,
+    "CompanyType": -1,
+    "AuditorRef": -1,
+    "PageChanging": True,
+    "AuditType": -1,
+    "Consolidatable": True,
+    "NotAudited": True,
+    "IsNotAudited": False,
+    "Childs": True,
+    "Mains": True,
+    "TracingNo": -1,
+    "CompanySearchType": 0,
+    "SymbolSearchType": 0,
+    "LetterType": -1,
 }
 
 HEADERS = {
@@ -39,6 +39,7 @@ HEADERS = {
     ),
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "fa-IR,fa;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Content-Type": "application/json;charset=UTF-8",
     "Referer": "https://codal.ir/",
     "Origin": "https://codal.ir",
 }
@@ -99,18 +100,18 @@ def fetch_announcements_from_codal(symbol: str, length: int = 50, page: int = 1)
         requests.RequestException: در صورت بروز خطای شبکه
         ValueError: در صورت نامعتبر بودن پاسخ
     """
-    params = {
-        **DEFAULT_QUERY_PARAMS,
+    payload = {
+        **DEFAULT_PAYLOAD,
         "Symbol": symbol,
-        "Length": str(length),
-        "PageNumber": str(page),
+        "Length": length,
+        "PageNumber": page,
     }
 
-    logger.info("ارسال درخواست به API کدال برای نماد: %s", symbol)
+    logger.info("ارسال درخواست POST به API کدال برای نماد: %s", symbol)
 
-    response = requests.get(
+    response = requests.post(
         CODAL_SEARCH_URL,
-        params=params,
+        json=payload,
         headers=HEADERS,
         timeout=getattr(settings, "CODAL_REQUEST_TIMEOUT", 30),
     )
