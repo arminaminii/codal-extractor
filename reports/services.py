@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from datetime import datetime, timezone
 
 import requests
@@ -55,16 +56,58 @@ def _parse_codal_date(date_str: str) -> datetime | None:
     return None
 
 
+# Codal API ignores Length=-1 and defaults to ~20 per page.
+# It also caps Length at 20, so we use 20 and paginate properly.
+PAGE_SIZE = 20
+MAX_PAGES = 200  # safety limit (200 * 20 = 4000 max per symbol)
+
+
+def _parse_letter(letter: dict, symbol: str) -> dict | None:
+    """
+    Parse a single Codal API letter item into our internal dict format.
+    Returns None if the letter has no TracingNo.
+    """
+    tracing_no = letter.get("TracingNo")
+    if not tracing_no:
+        return None
+
+    publish_date = _parse_codal_date(letter.get("PublishDateTime", ""))
+    letter_code = letter.get("LetterCode", "")
+
+    raw_url = letter.get("Url", "")
+    if raw_url:
+        if raw_url.startswith("/"):
+            direct_link = f"https://www.codal.ir{raw_url}"
+        else:
+            direct_link = raw_url
+    else:
+        direct_link = (
+            f"https://codal.ir/ReportList.aspx?"
+            f"search&Symbol={symbol}"
+            f"&LetterCode={letter_code}"
+            f"&TracingNo={tracing_no}"
+        )
+
+    return {
+        "tracking_id": tracing_no,
+        "symbol": symbol,
+        "title": letter.get("Title", letter.get("Subject", "")),
+        "publish_date": publish_date,
+        "direct_link": direct_link,
+        "letter_code": letter_code,
+    }
+
+
 def fetch_announcements_from_codal(
-    symbol: str, length: int = -1, page: int = 1
+    symbol: str, length: int = PAGE_SIZE, page: int = 1
 ) -> list[dict]:
     """
-    Send GET request to Codal API and retrieve list of announcements.
+    Send GET request to Codal API for a SINGLE page of results.
 
     Args:
         symbol: Stock symbol (e.g. "فولاد")
-        length: Number of results (-1 = all)
-        page: Page number
+        length: Number of results per page
+        page: Page number (1-based)
 
     Returns:
         List of dicts with announcement data
@@ -80,16 +123,15 @@ def fetch_announcements_from_codal(
     }
 
     logger.info(
-        "Sending GET request to Codal API for symbol: %s | params: %s",
-        symbol,
-        params,
+        "Fetching Codal API — symbol: %s | page: %d | length: %d",
+        symbol, page, length,
     )
 
     response = requests.get(
         CODAL_SEARCH_URL,
         params=params,
         headers=HEADERS,
-        timeout=getattr(settings, "CODAL_REQUEST_TIMEOUT", 30),
+        timeout=getattr(settings, "CODAL_REQUEST_TIMEOUT", 60),
     )
     response.raise_for_status()
 
@@ -103,41 +145,82 @@ def fetch_announcements_from_codal(
     results = []
 
     for item in letters:
-        tracing_no = item.get("TracingNo")
-        if not tracing_no:
-            continue
+        parsed = _parse_letter(item, symbol)
+        if parsed:
+            results.append(parsed)
 
-        publish_date = _parse_codal_date(item.get("PublishDateTime", ""))
-        letter_code = item.get("LetterCode", "")
+    logger.info(
+        "Page %d: received %d announcements for symbol %s",
+        page, len(results), symbol,
+    )
+    return results
 
-        # Build direct link (relative Url → prefix with https://www.codal.ir)
-        raw_url = item.get("Url", "")
-        if raw_url:
-            if raw_url.startswith("/"):
-                direct_link = f"https://www.codal.ir{raw_url}"
-            else:
-                direct_link = raw_url
-        else:
-            direct_link = (
-                f"https://codal.ir/ReportList.aspx?"
-                f"search&Symbol={symbol}"
-                f"&LetterCode={letter_code}"
-                f"&TracingNo={tracing_no}"
+
+def fetch_all_announcements_from_codal(symbol: str) -> list[dict]:
+    """
+    Fetch ALL announcements for a symbol by paginating through
+    every page the Codal API returns.
+
+    Stops when:
+      - A page returns 0 results, OR
+      - MAX_PAGES is reached (safety limit)
+
+    If a single page request fails, we stop and return what we have so far.
+
+    Returns combined list of all announcement dicts.
+    """
+    all_results = []
+    seen_ids = set()
+
+    for page_num in range(1, MAX_PAGES + 1):
+        try:
+            page_data = fetch_announcements_from_codal(
+                symbol, length=PAGE_SIZE, page=page_num
             )
+        except Exception as e:
+            logger.error(
+                "Error fetching page %d for %s: %s — returning %d results so far",
+                page_num, symbol, e, len(all_results),
+            )
+            break
 
-        results.append(
-            {
-                "tracking_id": tracing_no,
-                "symbol": symbol,
-                "title": item.get("Title", item.get("Subject", "")),
-                "publish_date": publish_date,
-                "direct_link": direct_link,
-                "letter_code": letter_code,
-            }
+        if not page_data:
+            logger.info(
+                "No more results for %s at page %d — stopping.",
+                symbol, page_num,
+            )
+            break
+
+        # Deduplicate by TracingNo (in case of overlap)
+        new_in_page = 0
+        for item in page_data:
+            tid = item["tracking_id"]
+            if tid not in seen_ids:
+                seen_ids.add(tid)
+                all_results.append(item)
+                new_in_page += 1
+
+        logger.info(
+            "Symbol %s page %d: %d total / %d new this page",
+            symbol, page_num, len(all_results), new_in_page,
         )
 
-    logger.info("Received %d announcements for symbol %s from Codal API", len(results), symbol)
-    return results
+        # If we got fewer results than PAGE_SIZE, this is the last page
+        if len(page_data) < PAGE_SIZE:
+            logger.info(
+                "Last page reached for %s (got %d < %d).",
+                symbol, len(page_data), PAGE_SIZE,
+            )
+            break
+
+        # Small delay between pages to avoid rate-limiting by Codal
+        time.sleep(0.3)
+
+    logger.info(
+        "✅ Finished fetching %s: %d total announcements across pages",
+        symbol, len(all_results),
+    )
+    return all_results
 
 
 def save_announcements_to_db(announcements_data: list[dict]) -> int:
@@ -167,13 +250,20 @@ def save_announcements_to_db(announcements_data: list[dict]) -> int:
     return saved_count
 
 
-def get_or_fetch_announcements(symbol: str) -> list[Announcement]:
+def get_or_fetch_announcements(
+    symbol: str, force_refresh: bool = False
+) -> list[Announcement]:
     """
     Main function: check DB first, then fetch from Codal API if needed.
+
+    Args:
+        symbol: Stock symbol
+        force_refresh: If True, always re-fetch from API and update DB.
+                         Used when the user clicks the "Refresh" button.
     """
     existing = Announcement.objects.filter(symbol=symbol).order_by("-publish_date")
 
-    if existing.exists():
+    if not force_refresh and existing.exists():
         logger.info(
             "Found %d existing records in DB for symbol %s",
             existing.count(),
@@ -181,10 +271,13 @@ def get_or_fetch_announcements(symbol: str) -> list[Announcement]:
         )
         return list(existing)
 
-    logger.info("No records in DB. Fetching from Codal for symbol: %s", symbol)
+    logger.info(
+        "Fetching from Codal for symbol: %s (force_refresh=%s)",
+        symbol, force_refresh,
+    )
 
     try:
-        announcements_data = fetch_announcements_from_codal(symbol)
+        announcements_data = fetch_all_announcements_from_codal(symbol)
     except requests.RequestException as e:
         logger.error("Error connecting to Codal API: %s", str(e))
         raise

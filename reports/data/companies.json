@@ -252,7 +252,7 @@
     "sector_icon": ""
   },
   {
-    "symbol": "وسينا",
+    "symbol": "وسین",
     "name": "بانک سينا",
     "sector": "بانکی",
     "sector_icon": ""
@@ -506,12 +506,6 @@
   {
     "symbol": "وحکمت",
     "name": "بیمه حکمت صبا",
-    "sector": "صنعت بیمه",
-    "sector_icon": ""
-  },
-  {
-    "symbol": "وسین",
-    "name": "بیمه سینا",
     "sector": "صنعت بیمه",
     "sector_icon": ""
   },

@@ -43,12 +43,14 @@ def reports(request, symbol):
     """
     Reports page for a specific company symbol.
     - GET param 'category': filter by report category
+    - GET param 'refresh': if "1", force re-fetch from Codal API
     - Fetches announcements and categorizes them
     """
     category_filter = request.GET.get("category", "").strip()
+    force_refresh = request.GET.get("refresh", "").strip() == "1"
 
     try:
-        announcements = get_or_fetch_announcements(symbol)
+        announcements = get_or_fetch_announcements(symbol, force_refresh=force_refresh)
     except requests.ConnectionError:
         logger.error("Connection error fetching announcements for %s", symbol)
         announcements = []

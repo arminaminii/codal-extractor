@@ -8,6 +8,7 @@ Provides:
 
 import jdatetime
 from django import template
+from django.utils.safestring import mark_safe
 
 register = template.Library()
 
@@ -255,20 +256,20 @@ def sector_svg_icon(sector_name: str, size: int = 20) -> str:
     Usage: {% sector_svg_icon company.sector %}
     """
     if not sector_name:
-        return _DEFAULT_ICON.replace('width="20" height="20"', f'width="{size}" height="{size}"')
+        return mark_safe(_DEFAULT_ICON.replace('width="20" height="20"', f'width="{size}" height="{size}"'))
 
     # Direct lookup
     svg = SECTOR_ICONS.get(sector_name)
     if svg:
-        return svg.replace('width="20" height="20"', f'width="{size}" height="{size}"')
+        return mark_safe(svg.replace('width="20" height="20"', f'width="{size}" height="{size}"'))
 
     # Fuzzy: try normalizing zero-width non-joiner
     normalized = sector_name.replace("\u200c", "").replace("‌", "")
     for key, val in SECTOR_ICONS.items():
         if key.replace("\u200c", "").replace("‌", "") == normalized:
-            return val.replace('width="20" height="20"', f'width="{size}" height="{size}"')
+            return mark_safe(val.replace('width="20" height="20"', f'width="{size}" height="{size}"'))
 
-    return _DEFAULT_ICON.replace('width="20" height="20"', f'width="{size}" height="{size}"')
+    return mark_safe(_DEFAULT_ICON.replace('width="20" height="20"', f'width="{size}" height="{size}"'))
 
 
 @register.filter

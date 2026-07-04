@@ -535,6 +535,37 @@ html { scroll-behavior: smooth; }
     border-right: 1px solid var(--border-glass);
 }
 
+.refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    background: rgba(34, 211, 238, 0.06);
+    color: var(--neon-cyan);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    margin-right: auto;
+}
+
+.refresh-btn:hover {
+    background: rgba(34, 211, 238, 0.15);
+    border-color: var(--neon-cyan);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(34, 211, 238, 0.15);
+}
+
+.refresh-btn svg {
+    transition: transform 0.4s ease;
+}
+
+.refresh-btn:hover svg {
+    transform: rotate(180deg);
+}
+
 .count-num {
     display: block;
     font-size: 1.5rem;
@@ -762,6 +793,7 @@ html { scroll-behavior: smooth; }
     .company-banner-icon { width: 44px; height: 44px; font-size: 1.2rem; }
     .company-banner-symbol { font-size: 1.1rem; }
     .company-results-count { display: none; }
+    .refresh-btn { display: none; }
     .results-table-wrap { overflow-x: auto; }
     .results-table { min-width: 700px; }
     .company-grid { grid-template-columns: 1fr; }
