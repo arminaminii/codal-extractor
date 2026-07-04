@@ -3,7 +3,12 @@ from django.shortcuts import render
 
 import requests
 
-from .services import get_or_fetch_announcements, search_companies, resolve_search_query
+from .services import (
+    get_all_sectors,
+    get_or_fetch_announcements,
+    search_companies,
+    resolve_search_query,
+)
 
 
 def home(request):
@@ -28,7 +33,12 @@ def home(request):
             from .models import Company
             try:
                 c = Company.objects.get(symbol=symbol_query)
-                company_info = {"symbol": c.symbol, "name": c.name, "sector": c.sector, "sector_icon": c.sector_icon}
+                company_info = {
+                    "symbol": c.symbol,
+                    "name": c.name,
+                    "sector": c.sector,
+                    "sector_icon": c.sector_icon,
+                }
             except Company.DoesNotExist:
                 company_info = None
 
@@ -62,10 +72,23 @@ def home(request):
 
 
 def suggestion_api(request):
-    """API اتوکامپلت جستجوی شرکت‌ها"""
+    """
+    API اتوکامپلت جستجوی شرکت‌ها.
+    پارامترها:
+      - q: عبارت جستجو
+      - sector: فیلتر صنعت (اختیاری)
+    """
     query = request.GET.get("q", "").strip()
+    sector = request.GET.get("sector", "").strip()
+
     if not query:
         return JsonResponse([], safe=False)
 
-    results = search_companies(query)
+    results = search_companies(query, limit=12, sector=sector)
     return JsonResponse(results, safe=False)
+
+
+def sector_list_api(request):
+    """API دریافت لیست صنایع"""
+    sectors = get_all_sectors()
+    return JsonResponse(sectors, safe=False)

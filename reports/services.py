@@ -118,13 +118,11 @@ def fetch_announcements_from_codal(
         # ساخت لینک مستقیم (codalpy از فیلد Url استفاده می‌کند)
         raw_url = item.get("Url", "")
         if raw_url:
-            # URL نسبی است، آدرس کامل می‌سازیم
             if raw_url.startswith("/"):
                 direct_link = f"https://www.codal.ir{raw_url}"
             else:
                 direct_link = raw_url
         else:
-            # لینک‌سازی دستی بر اساس الگوی کدال
             direct_link = (
                 f"https://codal.ir/ReportList.aspx?"
                 f"search&Symbol={symbol}"
@@ -148,20 +146,10 @@ def fetch_announcements_from_codal(
 
 
 def save_announcements_to_db(announcements_data: list[dict]) -> int:
-    """
-    ذخیره یا بروزرسانی اطلاعیه‌ها در دیتابیس.
-
-    Args:
-        announcements_data: لیست دیکشنری‌های خروجی تابع fetch_announcements_from_codal
-
-    Returns:
-        تعداد رکوردهای ذخیره/بروزرسانی شده
-    """
     if not announcements_data:
         return 0
 
     saved_count = 0
-
     for item in announcements_data:
         _, created = Announcement.objects.update_or_create(
             tracking_id=item["tracking_id"],
@@ -188,14 +176,7 @@ def get_or_fetch_announcements(symbol: str) -> list[Announcement]:
     """
     تابع اصلی: ابتدا دیتابیس را چک می‌کند.
     اگر رکوردی وجود نداشت، از API کدال می‌گیرد و ذخیره می‌کند.
-
-    Args:
-        symbol: نام نماد بورسی
-
-    Returns:
-        لیست آبجکت‌های Announcement از دیتابیس
     """
-    # ۱. بررسی دیتابیس
     existing = Announcement.objects.filter(symbol=symbol).order_by("-publish_date")
 
     if existing.exists():
@@ -206,7 +187,6 @@ def get_or_fetch_announcements(symbol: str) -> list[Announcement]:
         )
         return list(existing)
 
-    # ۲. استخراج از API کدال
     logger.info("رکوردی در دیتابیس یافت نشد. استخراج از کدال برای نماد: %s", symbol)
 
     try:
@@ -215,36 +195,103 @@ def get_or_fetch_announcements(symbol: str) -> list[Announcement]:
         logger.error("خطا در ارتباط با API کدال: %s", str(e))
         raise
 
-    # ۳. ذخیره در دیتابیس
     save_announcements_to_db(announcements_data)
 
-    # ۴. خواندن از دیتابیس و بازگرداندن
     return list(
         Announcement.objects.filter(symbol=symbol).order_by("-publish_date")
     )
 
 
-def search_companies(query: str, limit: int = 8) -> list[dict]:
+def search_companies(query: str, limit: int = 12, sector: str = "") -> list[dict]:
     """
-    جستجوی شرکت‌ها بر اساس نماد یا نام شرکت (برای autocomplete).
+    جستجوی هوشمند شرکت‌ها با امتیازدهی:
+
+    1. شروع با نماد (exact) → score 100
+    2. شروع با نام شرکت → score 90
+    3. شامل نماد → score 70
+    4. شامل نام شرکت → score 50
+    5. شامل کلمه‌ای از نام → score 30
     """
     if not query or len(query) < 1:
         return []
 
-    query_lower = query.lower()
-    companies = Company.objects.filter(
+    query_clean = query.strip()
+    query_lower = query_clean.lower()
+
+    # فیلتر صنعت
+    queryset = Company.objects.all()
+    if sector:
+        queryset = queryset.filter(sector=sector)
+
+    # برداشت اولیه (حداکثر ۵۰ تا برای امتیازدهی)
+    raw_results = list(queryset.filter(
         db_models.Q(symbol__icontains=query_lower) |
         db_models.Q(name__icontains=query_lower)
-    )[:limit]
+    )[:50])
+
+    scored = []
+    for c in raw_results:
+        sym_lower = c.symbol.lower()
+        name_lower = c.name.lower()
+        score = 0
+        match_type = "contains"
+
+        if sym_lower == query_lower:
+            score = 100
+            match_type = "exact_symbol"
+        elif sym_lower.startswith(query_lower):
+            score = 85
+            match_type = "starts_symbol"
+        elif name_lower.startswith(query_lower):
+            score = 90
+            match_type = "starts_name"
+        elif query_lower in sym_lower:
+            score = 70
+            match_type = "contains_symbol"
+        elif query_lower in name_lower:
+            score = 60
+            match_type = "contains_name"
+        else:
+            # بررسی هر کلمه از کوئری
+            words = query_lower.split()
+            word_matches = sum(1 for w in words if w in sym_lower or w in name_lower)
+            if word_matches > 0:
+                score = int(30 * word_matches / len(words))
+                match_type = "fuzzy"
+
+        if score > 0:
+            scored.append({
+                "symbol": c.symbol,
+                "name": c.name,
+                "sector": c.sector,
+                "sector_icon": c.sector_icon,
+                "score": score,
+                "match_type": match_type,
+            })
+
+    # مرتب‌سازی بر اساس امتیاز
+    scored.sort(key=lambda x: -x["score"])
+
+    return scored[:limit]
+
+
+def get_all_sectors() -> list[dict]:
+    """
+    دریافت لیست تمام صنایع با تعداد شرکت‌ها.
+    """
+    from django.db.models import Count
+
+    sectors = (
+        Company.objects
+        .values("sector", "sector_icon")
+        .annotate(count=Count("symbol"))
+        .order_by("-count")
+    )
 
     return [
-        {
-            "symbol": c.symbol,
-            "name": c.name,
-            "sector": c.sector,
-            "sector_icon": c.sector_icon,
-        }
-        for c in companies
+        {"name": s["sector"], "icon": s["sector_icon"], "count": s["count"]}
+        for s in sectors
+        if s["sector"]
     ]
 
 
@@ -253,16 +300,18 @@ def resolve_search_query(query: str) -> str:
     اگر کاربر نام شرکت را تایپ کرد، نماد مربوطه را برمی‌گرداند.
     در غیر این صورت همان عبارت را برمی‌گرداند.
     """
+    query_clean = query.strip()
+
     # اول جستجوی دقیق بر اساس نماد
     try:
-        company = Company.objects.get(symbol=query.strip())
+        company = Company.objects.get(symbol=query_clean)
         return company.symbol
     except Company.DoesNotExist:
         pass
 
     # جستجو بر اساس نام شرکت
-    matches = Company.objects.filter(name__icontains=query.strip())[:1]
+    matches = Company.objects.filter(name__icontains=query_clean)[:1]
     if matches:
         return matches[0].symbol
 
-    return query.strip()
+    return query_clean

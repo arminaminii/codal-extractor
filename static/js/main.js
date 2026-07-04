@@ -1,134 +1,281 @@
-// === Autocomplete ===
-const searchInput = document.getElementById('symbolInput');
-const suggestionsBox = document.getElementById('suggestionsBox');
-const searchForm = document.getElementById('searchForm');
-let debounceTimer = null;
-let selectedIndex = -1;
+// ============================================
+//  CODAL EXPERT - Main JavaScript
+// ============================================
 
-if (searchInput && suggestionsBox) {
-    searchInput.addEventListener('input', function() {
+(function () {
+    'use strict';
+
+    // --- Elements ---
+    const input = document.getElementById('symbolInput');
+    const form = document.getElementById('searchForm');
+    const suggestionsBox = document.getElementById('suggestionsBox');
+    const sectorChips = document.getElementById('sectorChips');
+    const sectorClearBtn = document.getElementById('sectorClearBtn');
+    const btnText = document.getElementById('btnText');
+    const btnLoader = document.getElementById('btnLoader');
+    const searchBtn = document.getElementById('searchBtn');
+
+    // --- State ---
+    let activeIndex = -1;
+    let debounceTimer = null;
+    let currentResults = [];
+    let selectedSector = '';
+    let sectorsLoaded = false;
+    let sectorData = [];
+
+    // --- Init ---
+    if (input) {
+        input.addEventListener('input', onInput);
+        input.addEventListener('keydown', onKeyDown);
+        input.addEventListener('focus', onInput);  // show suggestions on focus if has value
+        document.addEventListener('click', onDocumentClick);
+        loadSectors();
+    }
+
+    // --- Sector Filter ---
+    function loadSectors() {
+        if (sectorsLoaded) return;
+        fetch('/api/sectors/')
+            .then(r => r.json())
+            .then(data => {
+                sectorData = data;
+                sectorsLoaded = true;
+                renderSectorChips();
+            })
+            .catch(() => {
+                sectorChips.innerHTML = '<span style="color:var(--error-red);font-size:0.8rem;">خطا در بارگذاری لیست صنایع</span>';
+            });
+    }
+
+    function renderSectorChips() {
+        if (!sectorData.length) {
+            sectorChips.innerHTML = '';
+            return;
+        }
+        sectorChips.innerHTML = sectorData.map(s =>
+            `<button type="button" class="sector-chip" data-sector="${escHtml(s.name)}" onclick="toggleSector('${escHtml(s.name)}')">
+                <span class="sector-chip-icon">${s.icon}</span>
+                ${escHtml(s.name)}
+                <span class="sector-chip-count">(${s.count})</span>
+            </button>`
+        ).join('');
+    }
+
+    window.toggleSector = function (sector) {
+        if (selectedSector === sector) {
+            clearSectorFilter();
+        } else {
+            selectedSector = sector;
+            document.querySelectorAll('.sector-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.sector === sector);
+            });
+            sectorClearBtn.classList.add('visible');
+            // Re-trigger suggestions if input has value
+            if (input.value.trim()) {
+                fetchSuggestions(input.value.trim());
+            }
+        }
+    };
+
+    window.clearSectorFilter = function () {
+        selectedSector = '';
+        document.querySelectorAll('.sector-chip').forEach(c => c.classList.remove('active'));
+        sectorClearBtn.classList.remove('visible');
+        if (input.value.trim()) {
+            fetchSuggestions(input.value.trim());
+        }
+    };
+
+    // --- Debounced Input ---
+    function onInput() {
         clearTimeout(debounceTimer);
-        const query = this.value.trim();
-        
-        if (query.length < 1) {
+        const query = input.value.trim();
+        if (!query) {
             hideSuggestions();
             return;
         }
+        debounceTimer = setTimeout(() => fetchSuggestions(query), 150);
+    }
 
-        debounceTimer = setTimeout(() => {
-            fetch(`/api/suggestions/?q=${encodeURIComponent(query)}`)
-                .then(res => res.json())
-                .then(data => {
-                    renderSuggestions(data);
-                })
-                .catch(() => hideSuggestions());
-        }, 200);
-    });
+    // --- Fetch Suggestions ---
+    function fetchSuggestions(query) {
+        let url = `/api/suggestions/?q=${encodeURIComponent(query)}`;
+        if (selectedSector) {
+            url += `&sector=${encodeURIComponent(selectedSector)}`;
+        }
 
-    searchInput.addEventListener('keydown', function(e) {
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                currentResults = data;
+                activeIndex = -1;
+                if (data.length > 0) {
+                    renderSuggestions(data, query);
+                    showSuggestions();
+                } else {
+                    hideSuggestions();
+                }
+            })
+            .catch(() => hideSuggestions());
+    }
+
+    // --- Render Suggestions ---
+    function renderSuggestions(results, query) {
+        const queryLower = query.toLowerCase();
+
+        let html = `<div class="suggestions-header">
+            <span>نتایج پیشنهادی</span>
+            <span><span class="suggestions-count">${results.length}</span> شرکت یافت شد</span>
+        </div>`;
+
+        results.forEach((item, idx) => {
+            const sym = item.symbol || '';
+            const name = item.name || '';
+            const sector = item.sector || '';
+            const icon = item.sector_icon || '📊';
+            const matchType = item.match_type || '';
+
+            // Highlight matching text
+            const highlightedSym = highlightText(sym, query);
+            const highlightedName = highlightText(name, query);
+
+            // Match badge
+            let badge = '';
+            if (matchType === 'exact_symbol') {
+                badge = '<span class="suggestion-match-badge match-exact">دقیق</span>';
+            } else if (matchType === 'starts_symbol' || matchType === 'starts_name') {
+                badge = '<span class="suggestion-match-badge match-starts">شروع</span>';
+            }
+
+            html += `<div class="suggestion-item" data-index="${idx}" data-symbol="${escHtml(sym)}" onclick="selectSuggestion('${escHtml(sym)}')">
+                <div class="suggestion-icon">${icon}</div>
+                <div class="suggestion-info">
+                    <div class="suggestion-symbol">${highlightedSym} ${badge}</div>
+                    <div class="suggestion-name">${highlightedName}</div>
+                </div>
+                <div class="suggestion-sector">${escHtml(sector)}</div>
+            </div>`;
+        });
+
+        suggestionsBox.innerHTML = html;
+    }
+
+    function highlightText(text, query) {
+        if (!text || !query) return escHtml(text);
+        const textLower = text.toLowerCase();
+        const queryLower = query.toLowerCase();
+        const idx = textLower.indexOf(queryLower);
+
+        if (idx === -1) return escHtml(text);
+
+        const before = text.substring(0, idx);
+        const match = text.substring(idx, idx + query.length);
+        const after = text.substring(idx + query.length);
+
+        return `${escHtml(before)}<span class="highlight-match">${escHtml(match)}</span>${escHtml(after)}`;
+    }
+
+    // --- Keyboard Navigation ---
+    function onKeyDown(e) {
         const items = suggestionsBox.querySelectorAll('.suggestion-item');
-        if (!items.length) return;
+        if (!items.length || !suggestionsBox.classList.contains('active')) return;
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
-            updateHighlight(items);
+            activeIndex = Math.min(activeIndex + 1, items.length - 1);
+            updateActiveItem(items);
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
-            selectedIndex = Math.max(selectedIndex - 1, -1);
-            updateHighlight(items);
-        } else if (e.key === 'Enter' && selectedIndex >= 0) {
-            e.preventDefault();
-            items[selectedIndex].click();
+            activeIndex = Math.max(activeIndex - 1, -1);
+            updateActiveItem(items);
+        } else if (e.key === 'Enter') {
+            if (activeIndex >= 0 && items[activeIndex]) {
+                e.preventDefault();
+                const symbol = items[activeIndex].dataset.symbol;
+                selectSuggestion(symbol);
+            }
         } else if (e.key === 'Escape') {
             hideSuggestions();
         }
-    });
+    }
 
-    searchInput.addEventListener('focus', function() {
-        if (this.value.trim().length >= 1) {
-            this.dispatchEvent(new Event('input'));
+    function updateActiveItem(items) {
+        items.forEach((item, i) => {
+            item.classList.toggle('active', i === activeIndex);
+        });
+        if (activeIndex >= 0 && items[activeIndex]) {
+            items[activeIndex].scrollIntoView({ block: 'nearest' });
         }
-    });
+    }
 
-    document.addEventListener('click', function(e) {
+    // --- Select Suggestion ---
+    window.selectSuggestion = function (symbol) {
+        input.value = symbol;
+        hideSuggestions();
+        form.submit();
+    };
+
+    // --- Show/Hide ---
+    function showSuggestions() {
+        suggestionsBox.classList.add('active');
+    }
+
+    function hideSuggestions() {
+        suggestionsBox.classList.remove('active');
+        activeIndex = -1;
+    }
+
+    function onDocumentClick(e) {
         if (!e.target.closest('.search-wrapper')) {
             hideSuggestions();
         }
-    });
-}
-
-function renderSuggestions(data) {
-    if (!data || data.length === 0) {
-        hideSuggestions();
-        return;
     }
 
-    suggestionsBox.innerHTML = data.map((item, i) => `
-        <div class="suggestion-item" data-symbol="${item.symbol}" data-index="${i}">
-            <div class="suggestion-icon">${item.sector_icon}</div>
-            <div class="suggestion-info">
-                <div class="suggestion-symbol">${highlightMatch(item.symbol, searchInput.value)}</div>
-                <div class="suggestion-name">${item.name}</div>
-            </div>
-            <div class="suggestion-sector">${item.sector}</div>
-        </div>
-    `).join('');
-
-    selectedIndex = -1;
-
-    suggestionsBox.querySelectorAll('.suggestion-item').forEach(item => {
-        item.addEventListener('click', function() {
-            searchInput.value = this.dataset.symbol;
+    // --- Form Submit: Show Loading ---
+    if (form) {
+        form.addEventListener('submit', function () {
             hideSuggestions();
-            searchForm.submit();
+            btnText.style.display = 'none';
+            btnLoader.style.display = 'inline-flex';
+            searchBtn.disabled = true;
         });
-    });
-
-    suggestionsBox.classList.add('active');
-}
-
-function highlightMatch(text, query) {
-    const idx = text.toLowerCase().indexOf(query.toLowerCase());
-    if (idx === -1) return text;
-    return text.substring(0, idx) + 
-           '<span class="highlight-match">' + text.substring(idx, idx + query.length) + '</span>' + 
-           text.substring(idx + query.length);
-}
-
-function updateHighlight(items) {
-    items.forEach((item, i) => {
-        item.classList.toggle('active', i === selectedIndex);
-    });
-    if (selectedIndex >= 0) {
-        searchInput.value = items[selectedIndex].dataset.symbol;
     }
-}
 
-function hideSuggestions() {
-    if (suggestionsBox) {
-        suggestionsBox.classList.remove('active');
-        suggestionsBox.innerHTML = '';
-        selectedIndex = -1;
-    }
-}
+    // --- No Results: Load Closest Matches ---
+    const noResultsSection = document.getElementById('noResultsSection');
+    const closestMatchesGrid = document.getElementById('closestMatchesGrid');
 
-// === Search Form Submit ===
-if (searchForm) {
-    searchForm.addEventListener('submit', function(e) {
-        const query = searchInput.value.trim();
-        if (!query) {
-            e.preventDefault();
-            return;
+    if (noResultsSection && closestMatchesGrid) {
+        const rawQuery = input ? input.value.trim() : '';
+        if (rawQuery) {
+            fetch(`/api/suggestions/?q=${encodeURIComponent(rawQuery)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        noResultsSection.style.display = 'block';
+                        closestMatchesGrid.innerHTML = data.slice(0, 8).map(item => `
+                            <a href="?symbol=${encodeURIComponent(item.symbol)}" class="closest-match-card">
+                                <div class="match-card-icon">${item.sector_icon || '📊'}</div>
+                                <div class="match-card-info">
+                                    <div class="match-card-symbol">${escHtml(item.symbol)}</div>
+                                    <div class="match-card-name">${escHtml(item.name)}</div>
+                                    <div class="match-card-sector">${escHtml(item.sector || '')}</div>
+                                </div>
+                                <span class="match-card-arrow">←</span>
+                            </a>
+                        `).join('');
+                    }
+                })
+                .catch(() => {});
         }
-        hideSuggestions();
-        
-        const btnText = this.querySelector('.btn-text');
-        const btnLoader = this.querySelector('.btn-loader');
-        if (btnText) btnText.style.display = 'none';
-        if (btnLoader) btnLoader.style.display = 'inline-flex';
-        
-        const submitBtn = this.querySelector('.search-btn');
-        if (submitBtn) submitBtn.disabled = true;
-    });
-}
+    }
+
+    // --- Utility ---
+    function escHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+})();

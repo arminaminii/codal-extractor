@@ -11,7 +11,7 @@
                 <span class="title-icon">🔍</span>
                 جستجوی اطلاعیه‌ها
             </h2>
-            <p class="search-hint">نام نماد یا شرکت را جستجو کنید — مثلاً «فولاد» یا «ایران خودرو»</p>
+            <p class="search-hint">نام نماد یا شرکت را جستجو کنید — مثلاً «بیمه»، «فولاد» یا «ایران خودرو»</p>
         </div>
 
         <form method="get" action="{% url 'home' %}" class="search-form" id="searchForm">
@@ -32,15 +32,33 @@
                         maxlength="100"
                     >
                 </div>
-                <button type="submit" class="search-btn">
-                    <span class="btn-text">استخراج اطلاعیه‌ها</span>
-                    <span class="btn-loader" style="display: none;">
+                <button type="submit" class="search-btn" id="searchBtn">
+                    <span class="btn-text" id="btnText">استخراج اطلاعیه‌ها</span>
+                    <span class="btn-loader" id="btnLoader" style="display: none;">
                         <span class="spinner"></span>
                     </span>
                 </button>
+
+                <!-- Suggestions Dropdown -->
+                <div id="suggestionsBox" class="suggestions-box"></div>
             </div>
-            <div id="suggestionsBox" class="suggestions-box"></div>
         </form>
+
+        <!-- Sector Filter Chips -->
+        <div class="sector-filter-section" id="sectorFilterSection">
+            <div class="sector-filter-header">
+                <span class="sector-filter-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                    </svg>
+                    فیلتر صنعت:
+                </span>
+                <button type="button" class="sector-clear-btn" id="sectorClearBtn" onclick="clearSectorFilter()">پاک کردن</button>
+            </div>
+            <div class="sector-chips" id="sectorChips">
+                <span style="color: var(--text-muted); font-size: 0.8rem;">در حال بارگذاری...</span>
+            </div>
+        </div>
 
         <!-- Quick Access Tags -->
         <div class="quick-tags">
@@ -48,7 +66,7 @@
             <a href="?symbol=فولاد" class="tag">🔩 فولاد</a>
             <a href="?symbol=خودرو" class="tag">🚗 خودرو</a>
             <a href="?symbol=شبندر" class="tag">⛽ شبندر</a>
-            <a href="?symbol=پارس" class="tag">🧪 پارس</a>
+            <a href="?symbol=فارس" class="tag">🧪 فارس</a>
             <a href="?symbol=وبملت" class="tag">🏦 وبملت</a>
             <a href="?symbol=وغدیر" class="tag">💼 وغدیر</a>
         </div>
@@ -88,6 +106,10 @@
     {% endif %}
 
     {% if announcements %}
+    <div class="results-header" style="margin-top: 4px;">
+        <h2 class="results-title">اطلاعیه‌ها</h2>
+        <span class="results-count-badge">{{ total_results }} نتیجه</span>
+    </div>
     <div class="results-table-wrap">
         <table class="results-table">
             <thead>
@@ -137,6 +159,17 @@
         </table>
     </div>
     {% endif %}
+    {% endif %}
+
+    {% if error_message and raw_query %}
+    <!-- No Results: Show Closest Matches -->
+    <div class="no-results-suggestions" id="noResultsSection" style="display:none;">
+        <div class="no-results-title">
+            <span>💡</span>
+            شاید یکی از این شرکت‌ها را منظور داشتید:
+        </div>
+        <div class="closest-matches-grid" id="closestMatchesGrid"></div>
+    </div>
     {% endif %}
 </section>
 {% endblock %}
