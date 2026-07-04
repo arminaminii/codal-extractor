@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 import requests
 from django.conf import settings
+from django.db import models as db_models
 
 from .models import Announcement, Company
 
@@ -232,8 +233,8 @@ def search_companies(query: str, limit: int = 8) -> list[dict]:
 
     query_lower = query.lower()
     companies = Company.objects.filter(
-        models.Q(symbol__icontains=query_lower) |
-        models.Q(name__icontains=query_lower)
+        db_models.Q(symbol__icontains=query_lower) |
+        db_models.Q(name__icontains=query_lower)
     )[:limit]
 
     return [
