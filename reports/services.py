@@ -225,9 +225,13 @@ def get_or_fetch_announcements(
     Check DB first, then fetch from Codal API if needed.
 
     Args:
-        symbol: Stock symbol
+        symbol: Stock symbol (will be normalized internally)
         force_refresh: If True, always re-fetch from API and update DB.
     """
+    # Normalize symbol ONCE at the top so DB queries and API calls
+    # all use the same value.
+    symbol = _normalize_persian(symbol)
+
     existing = Announcement.objects.filter(symbol=symbol).order_by("-publish_date")
 
     if not force_refresh and existing.exists():

@@ -6,6 +6,7 @@ from django.shortcuts import redirect, render
 
 from .models import Announcement, Company
 from .services import (
+    _normalize_persian,
     categorize_letter_code,
     get_all_sectors,
     get_companies_by_sector,
@@ -49,19 +50,31 @@ def reports(request, symbol):
     category_filter = request.GET.get("category", "").strip()
     force_refresh = request.GET.get("refresh", "").strip() == "1"
 
+    # Normalize symbol early so template and DB queries all use same value
+    symbol = _normalize_persian(symbol)
+    logger.info(
+        "Reports view: symbol=%s force_refresh=%s category=%s",
+        symbol, force_refresh, category_filter,
+    )
+
+    # --- Fetch announcements ---
+    fetch_error = None
+    announcements = []
     try:
         announcements = get_or_fetch_announcements(symbol, force_refresh=force_refresh)
     except requests.ConnectionError:
+        fetch_error = "خطا در اتصال به سرور کدال. لطفاً اتصال اینترنت خود را بررسی کنید."
         logger.error("Connection error fetching announcements for %s", symbol)
-        announcements = []
     except requests.Timeout:
+        fetch_error = "درخواست به سرور کدال طول کشید و قطع شد. لطفاً دوباره تلاش کنید."
         logger.error("Timeout fetching announcements for %s", symbol)
-        announcements = []
     except requests.RequestException as e:
+        fetch_error = f"خطا در دریافت اطلاعات از کدال: {e}"
         logger.error("Request error fetching announcements for %s: %s", symbol, e)
-        announcements = []
 
-    # Get company info from DB
+    logger.info("Reports view: got %d announcements for %s", len(announcements), symbol)
+
+    # Get company info from DB (also normalize)
     try:
         company = Company.objects.get(symbol=symbol)
         company_info = {
@@ -124,6 +137,7 @@ def reports(request, symbol):
         "categories": categories,
         "category_filter": category_filter,
         "total_results": len(categorized_announcements),
+        "fetch_error": fetch_error,
     }
 
     return render(request, "reports/reports.html", context)
