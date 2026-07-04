@@ -47,7 +47,7 @@ class Command(BaseCommand):
                 symbol=symbol,
                 name=item.get("name", "").strip(),
                 sector=item.get("sector", "").strip(),
-                sector_icon=item.get("sector_icon", "📊"),
+                sector_icon=item.get("sector_icon", ""),
             ))
 
         # ذخیره

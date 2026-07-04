@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load codal_tags %}
 
 {% block title %}انتخاب شرکت - کدال اکسپرت{% endblock %}
 
@@ -45,7 +46,7 @@
                 <div class="sector-dropdown-list">
                     {% for s in sectors %}
                     <div class="sector-dropdown-item" data-sector="{{ s.name }}" onclick="window._selectSector('{{ s.name }}')">
-                        <span>{{ s.icon }}</span>
+                        <span class="sector-item-icon">{% sector_svg_icon s.name %}</span>
                         <span>{{ s.name }}</span>
                         <span class="sector-item-count">({{ s.count }})</span>
                     </div>

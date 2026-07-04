@@ -97,7 +97,7 @@ def reports(request, symbol):
     category_order = [
         "financial", "disclosure", "assembly",
         "capital_increase", "dividend", "monthly",
-        "management", "other",
+        "management", "corporate", "other",
     ]
     categories = []
     for key in category_order:

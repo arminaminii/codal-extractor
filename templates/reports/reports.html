@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load codal_tags %}
 
 {% block title %}گزارش‌های {{ symbol }} - کدال اکسپرت{% endblock %}
 
@@ -27,12 +28,17 @@
     <!-- Company Banner -->
     {% if company_info %}
     <div class="company-banner">
-        <div class="company-banner-icon">{{ company_info.sector_icon }}</div>
+        <div class="company-banner-icon">{% sector_svg_icon company_info.sector 28 %}</div>
         <div class="company-banner-info">
             <div class="company-banner-symbol">{{ company_info.symbol }}</div>
             <div class="company-banner-name">{{ company_info.name }}</div>
         </div>
-        <div class="company-sector-badge">{{ company_info.sector }}</div>
+        <div class="company-sector-badge">
+            <span style="display:inline-flex;align-items:center;gap:0.35rem;">
+                {% sector_svg_icon company_info.sector 14 %}
+                {{ company_info.sector }}
+            </span>
+        </div>
         <div class="company-results-count">
             <span class="count-num">{{ total_results }}</span>
             <span class="count-label">اطلاعیه</span>
@@ -55,8 +61,6 @@
             <span class="cat-count">({{ total_results }})</span>
         </a>
         {% for cat in categories %}
-        {% with cat_count=announcements|length %}
-        {% endwith %}
         <a href="{% url 'reports' symbol=symbol %}?category={{ cat.category }}" class="category-filter-btn {% if category_filter == cat.category %}active{% endif %}" style="{% if category_filter == cat.category %}background:{{ cat.color }}20;border-color:{{ cat.color }};color:{{ cat.color }};{% endif %}">
             <span class="cat-dot" style="background:{{ cat.color }};"></span>
             {{ cat.label }}
@@ -106,7 +110,7 @@
                     </td>
                     <td class="col-date">
                         {% if ann.publish_date %}
-                        <span class="persian-date">{{ ann.publish_date|date:"Y/m/d H:i" }}</span>
+                        <span class="persian-date">{{ ann.publish_date|to_jalali }}</span>
                         {% else %}
                         <span class="text-muted">—</span>
                         {% endif %}

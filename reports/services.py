@@ -200,40 +200,114 @@ def categorize_letter_code(letter_code: str) -> dict:
     """
     Map a Codal LetterCode to a category with label and color.
 
+    Based on official Codal.ir letter codes:
+      https://bourse-trader.ir/codalcode
+
+    Categories:
+      financial        - صورت‌های مالی (ن-۱۰, ن-۳۱, ن-۳۲, etc.)
+      management       - گزارش هیئت مدیره (ن-۱۱, ن-۲)
+      disclosure       - افشای اطلاعات بااهمیت (ن-۲۰, ن-۲۱, ن-۲۲, ن-۲۳)
+      monthly          - گزارش فعالیت ماهانه (ن-۳۰)
+      assembly         - مجامع عمومی (ن-۴۲ to ن-۵۹)
+      capital_increase - افزایش سرمایه (ن-۶۰ to ن-۷۳)
+      dividend         - سود نقدی / زمان‌بندی پرداخت (ن-۱۳)
+      corporate        - تغییرات شرکتی (ن-۸۰, ن-۸۱, ن-۴۳, ن-۴۵)
+      other            - سایر
+
     Returns:
         dict with keys: category, label, color
     """
     lc = (letter_code or "").strip()
 
-    # Assembly — مجامع عمومی (check FIRST before generic ن-)
-    if any(kw in lc for kw in ("مجمع", "ن-۵۶", "ن-۵۷", "ن-۵۸", "ن-۵۹", "ن-۶۰")):
-        return {"category": "assembly", "label": "مجامع عمومی", "color": "#a78bfa"}
-
-    # Management report — گزارش تفسیری / هیئت مدیره (ن-۲)
-    if lc in ("ن-۲", "N-2") or any(kw in lc for kw in ("هیئت مدیره", "گزارش فعالیت")):
-        return {"category": "management", "label": "گزارش هیئت مدیره", "color": "#fb923c"}
-
-    # Monthly report — گزارش ماهانه
-    if any(kw in lc for kw in ("ماهانه", "گ.م", "فعالیت ماهانه")):
-        return {"category": "monthly", "label": "گزارش ماهانه", "color": "#60a5fa"}
-
-    # Capital increase — افزایش سرمایه
-    if any(kw in lc for kw in ("افزایش سرمایه", "حق تقدم", "ن-۲۶")):
+    # --- Capital Increase (check FIRST — many sub-codes) ---
+    CAPITAL_CODES = {
+        "ن-۶۰", "ن-۶۱", "ن-۶۲", "ن-۶۳", "ن-۶۴", "ن-۶۵",
+        "ن-۶۶", "ن-۶۷", "ن-۶۹", "ن-۷۰", "ن-۷۱", "ن-۷۲", "ن-۷۳",
+        "N-60", "N-61", "N-62", "N-63", "N-64", "N-65",
+        "N-66", "N-67", "N-69", "N-70", "N-71", "N-72", "N-73",
+    }
+    if lc in CAPITAL_CODES:
         return {"category": "capital_increase", "label": "افزایش سرمایه", "color": "#34d399"}
 
-    # Dividend — سود نقدی (before disclosure, exclude "سود و زیان")
-    if ("سود" in lc or "تقسیم" in lc) and "سود و زیان" not in lc:
-        return {"category": "dividend", "label": "سود نقدی", "color": "#f472b6"}
+    # Keyword-based capital increase (for codes not in our list)
+    if any(kw in lc for kw in ("افزایش سرمایه", "حق تقدم", "پذیره نویسی")):
+        return {"category": "capital_increase", "label": "افزایش سرمایه", "color": "#34d399"}
 
-    # Disclosure — افشای اطلاعات بااهمیت
-    if any(kw in lc for kw in ("الف", "ب", "شم", "افشا", "ش.", "اطلاعات با اهمیت")):
-        return {"category": "disclosure", "label": "افشای اطلاعات بااهمیت", "color": "#f59e0b"}
+    # --- Assembly / Shareholder Meetings ---
+    ASSEMBLY_CODES = {
+        "ن-۴۲", "ن-۵۰", "ن-۵۱", "ن-۵۲", "ن-۵۳", "ن-۵۴",
+        "ن-۵۵", "ن-۵۶", "ن-۵۷", "ن-۵۸", "ن-۵۹",
+        "N-42", "N-50", "N-51", "N-52", "N-53", "N-54",
+        "N-55", "N-56", "N-57", "N-58", "N-59",
+    }
+    if lc in ASSEMBLY_CODES:
+        return {"category": "assembly", "label": "مجامع عمومی", "color": "#a78bfa"}
 
-    # Financial statements — صورت‌های مالی (general ن- prefix)
-    if lc in ("N-1", "ن-۱") or lc.startswith("ن-"):
+    if any(kw in lc for kw in ("مجمع", "دعوت به مجمع", "تصمیمات مجمع")):
+        return {"category": "assembly", "label": "مجامع عمومی", "color": "#a78bfa"}
+
+    # --- Financial Statements ---
+    # ن-۱۰: صورت‌های مالی میان دوره‌ای
+    # ن-۳۱: صورت‌های مالی سالانه (annual, the main one)
+    # ن-۳۲: گزارش تفسیری مدیریت
+    # ن-۳۳: گزارش حسابرسی
+    # ن-۳۴: یادداشت‌های صورت‌های مالی
+    # ن-۲۶: توضیحات در خصوص اطلاعات و صورت‌های مالی
+    FINANCIAL_CODES = {
+        "ن-۱۰", "ن-۳۱", "ن-۳۲", "ن-۳۳", "ن-۳۴", "ن-۲۶",
+        "N-10", "N-31", "N-32", "N-33", "N-34", "N-26",
+    }
+    if lc in FINANCIAL_CODES:
         return {"category": "financial", "label": "صورت‌های مالی", "color": "#22d3ee"}
 
-    # Other — سایر
+    # Keyword-based financial
+    if any(kw in lc for kw in (
+        "صورت مالی", "صورت\u200cهای مالی",
+        "حسابرسی", "توضیحات مدیریت",
+        "گزارش تفسیری",
+    )):
+        return {"category": "financial", "label": "صورت‌های مالی", "color": "#22d3ee"}
+
+    # --- Management Activity Report ---
+    MANAGEMENT_CODES = {"ن-۱۱", "N-11"}
+    if lc in MANAGEMENT_CODES:
+        return {"category": "management", "label": "گزارش هیئت مدیره", "color": "#fb923c"}
+
+    if any(kw in lc for kw in ("هیئت مدیره", "گزارش فعالیت")):
+        return {"category": "management", "label": "گزارش هیئت مدیره", "color": "#fb923c"}
+
+    # --- Monthly Activity Report ---
+    if lc in ("ن-۳۰", "N-30") or "ماهانه" in lc:
+        return {"category": "monthly", "label": "گزارش ماهانه", "color": "#60a5fa"}
+
+    # --- Dividend / Profit Distribution ---
+    if lc in ("ن-۱۳", "N-13"):
+        return {"category": "dividend", "label": "سود نقدی", "color": "#f472b6"}
+
+    if any(kw in lc for kw in ("سود نقدی", "تقسیم سود", "پرداخت سود")) and "سود و زیان" not in lc:
+        return {"category": "dividend", "label": "سود نقدی", "color": "#f472b6"}
+
+    # --- Disclosure / Material Information ---
+    DISCLOSURE_CODES = {"ن-۲۰", "ن-۲۱", "ن-۲۲", "ن-۲۳", "ن-۲۴", "ن-۲۵", "N-20", "N-21", "N-22", "N-23", "N-24", "N-25"}
+    if lc in DISCLOSURE_CODES:
+        return {"category": "disclosure", "label": "افشای اطلاعات بااهمیت", "color": "#f59e0b"}
+
+    if any(kw in lc for kw in ("افشا", "اطلاعات با اهمیت", "شایعه", "شفاف‌سازی", "نوسان قیمت")):
+        return {"category": "disclosure", "label": "افشای اطلاعات بااهمیت", "color": "#f59e0b"}
+
+    # --- Corporate Changes ---
+    CORPORATE_CODES = {"ن-۸۰", "ن-۸۱", "ن-۴۳", "ن-۴۵", "ن-۱۲", "ن-۴۱", "N-80", "N-81", "N-43", "N-45", "N-12", "N-41"}
+    if lc in CORPORATE_CODES:
+        return {"category": "corporate", "label": "تغییرات شرکتی", "color": "#c084fc"}
+
+    if any(kw in lc for kw in ("تغییر نشانی", "اساسنامه", "اعضای هیئت مدیره", "کمیته حسابرسی", "کنترل داخلی")):
+        return {"category": "corporate", "label": "تغییرات شرکتی", "color": "#c084fc"}
+
+    # --- Fallback: any ن- code → financial ---
+    if lc.startswith("ن-") or lc.startswith("N-"):
+        return {"category": "financial", "label": "صورت‌های مالی", "color": "#22d3ee"}
+
+    # --- Other ---
     return {"category": "other", "label": "سایر", "color": "#64748b"}
 
 
