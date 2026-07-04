@@ -1,0 +1,1773 @@
+[
+  {
+    "symbol": "وآيند",
+    "name": "بانك  آينده",
+    "sector": "بانکی",
+    "subindustry": "",
+    "sector_icon": "🏦"
+  },
+  {
+    "symbol": "وزمين",
+    "name": "بانك ايران زمين",
+    "sector": "بانکی",
+    "subindustry": "",
+    "sector_icon": "🏦"
+  },
+  {
+    "symbol": "وسالت",
+    "name": "بانك قرض الحسنه رسالت",
+    "sector": "بانکی",
+    "subindustry": "",
+    "sector_icon": "🏦"
+  },
+  {
+    "symbol": "وشهر",
+    "name": "بانك شهر",
+    "sector": "بانکی",
+    "subindustry": "",
+    "sector_icon": "🏦"
+  },
+  {
+    "symbol": "آرمان",
+    "name": "بيمه آرمان",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "اتكام",
+    "name": "شركت بيمه اتكايي امين",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "اتكامح",
+    "name": "ح. شركت بيمه اتكايي امين",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "اتكاي",
+    "name": "بيمه اتكايي ايرانيان",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "بساما",
+    "name": "بيمه سامان",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "بپاس",
+    "name": "بيمه پاسارگاد",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "كوثر",
+    "name": "بيمه كوثر",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "ميهن",
+    "name": "بيمه ميهن",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "وآفري",
+    "name": "بيمه كارآفرين",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "وتعاون",
+    "name": "بيمه  تعاون",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "وتعاونح",
+    "name": "ح . بيمه  تعاون",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "وحافظ",
+    "name": "بيمه حافظ",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "ودي",
+    "name": "بيمه  دي",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "ورازي",
+    "name": "بيمه رازي",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "وسرمد",
+    "name": "بيمه  سرمد",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "وسين",
+    "name": "بيمه سينا",
+    "sector": "بیمه",
+    "subindustry": "",
+    "sector_icon": "🛡️"
+  },
+  {
+    "symbol": "حآسا",
+    "name": "آسيا سير ارس",
+    "sector": "حمل و نقل",
+    "subindustry": "",
+    "sector_icon": "🚢"
+  },
+  {
+    "symbol": "حاريا",
+    "name": "كشتيراني آريا",
+    "sector": "حمل و نقل",
+    "subindustry": "",
+    "sector_icon": "🚢"
+  },
+  {
+    "symbol": "حبندر",
+    "name": "دريايي و کشتيراني خط دريابندر",
+    "sector": "حمل و نقل",
+    "subindustry": "",
+    "sector_icon": "🚢"
+  },
+  {
+    "symbol": "حخزر",
+    "name": "كشتيراني درياي خزر",
+    "sector": "حمل و نقل",
+    "subindustry": "",
+    "sector_icon": "🚢"
+  },
+  {
+    "symbol": "حرهشا",
+    "name": "رهشاد سپاهان (سهامي عام",
+    "sector": "حمل و نقل",
+    "subindustry": "",
+    "sector_icon": "🚢"
+  },
+  {
+    "symbol": "حريل",
+    "name": "ريل پردازسير",
+    "sector": "حمل و نقل",
+    "subindustry": "",
+    "sector_icon": "🚢"
+  },
+  {
+    "symbol": "حسير",
+    "name": "ريل سير كوثر",
+    "sector": "حمل و نقل",
+    "subindustry": "",
+    "sector_icon": "🚢"
+  },
+  {
+    "symbol": "حسينا",
+    "name": "توسعه خدمات دريايي وبندري سينا",
+    "sector": "حمل و نقل",
+    "subindustry": "",
+    "sector_icon": "🚢"
+  },
+  {
+    "symbol": "حپارسا",
+    "name": "توسعه حمل و نقل ريلي پارسيان",
+    "sector": "حمل و نقل",
+    "subindustry": "",
+    "sector_icon": "🚢"
+  },
+  {
+    "symbol": "خاور",
+    "name": "ايران خودرو ديزل",
+    "sector": "خودرویی",
+    "subindustry": "",
+    "sector_icon": "🚗"
+  },
+  {
+    "symbol": "خديزل",
+    "name": "بهمن  ديزل",
+    "sector": "خودرویی",
+    "subindustry": "",
+    "sector_icon": "🚗"
+  },
+  {
+    "symbol": "خصدرا",
+    "name": "صنعتي‌ دريايي‌ ايران‌",
+    "sector": "خودرویی",
+    "subindustry": "",
+    "sector_icon": "🚗"
+  },
+  {
+    "symbol": "خعمرا",
+    "name": "توسعه و عمران شهرستان نائين",
+    "sector": "خودرویی",
+    "subindustry": "",
+    "sector_icon": "🚗"
+  },
+  {
+    "symbol": "خفناور",
+    "name": "مهندسي صنعتي روان فن آور",
+    "sector": "خودرویی",
+    "subindustry": "",
+    "sector_icon": "🚗"
+  },
+  {
+    "symbol": "خفولا",
+    "name": "خدمات فني فولاد يزد",
+    "sector": "خودرویی",
+    "subindustry": "",
+    "sector_icon": "🚗"
+  },
+  {
+    "symbol": "خكاوه",
+    "name": "سايپا ديزل",
+    "sector": "خودرویی",
+    "subindustry": "",
+    "sector_icon": "🚗"
+  },
+  {
+    "symbol": "خكرمان",
+    "name": "گروه اقتصادي كرمان خودرو",
+    "sector": "خودرویی",
+    "subindustry": "",
+    "sector_icon": "🚗"
+  },
+  {
+    "symbol": "داراب",
+    "name": "پتروشيمي داراب",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "داوه",
+    "name": "داروسازي آوه سينا",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "دبالك",
+    "name": "مواد اوليه دارويي البرز بالك",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "دتوليد",
+    "name": "داروسازي توليد دارو",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "دحاوي",
+    "name": "الحاوي",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "دسانكو",
+    "name": "داروسازي سبحان انكولوژي",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "دسانكوح",
+    "name": "ح . داروسازي سبحان انكولوژي",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "دشيري",
+    "name": "شيرين دارو",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "دقاضي",
+    "name": "داروسازي شهيد قاضي",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "دماوند",
+    "name": "توليد نيروي برق دماوند",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "دي",
+    "name": "بانك دي",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "كاسپين",
+    "name": "داروسازي كاسپين تامين",
+    "sector": "دارویی",
+    "subindustry": "",
+    "sector_icon": "💊"
+  },
+  {
+    "symbol": "پلوله",
+    "name": "گازلوله‌",
+    "sector": "ساختمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثاصفا",
+    "name": "شركت‌ ساختمان‌ اصفهان‌",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثالوند",
+    "name": "سرمايه گذاري مسكن الوند",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثباغ",
+    "name": "شهر سازي و خانه سازي باغميشه",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثتران",
+    "name": "سرمايه گذاري مسكن تهران",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثتوسا",
+    "name": "س.توسعه و عمران استان اردبيل",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثجوان",
+    "name": "تامين مسكن جوانان",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثرود",
+    "name": "سرمايه‌گذاري مسكن زاينده رود",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثزاگرس",
+    "name": "سرمايه گذاري توسعه عمران زاگرس",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثعتما",
+    "name": "س. ساختماني اعتماد گستر",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثعمرا",
+    "name": "عمران و توسعه شاهد",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثغرب",
+    "name": "شركت سرمايه گذاري مسكن شمالغرب",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثقزوي",
+    "name": "شركت عمران و سازندگي قزوين",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثنام",
+    "name": "س ساختماني ب نام آوران مهندسي",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثنظام",
+    "name": "س. ساختماني نظام مهندسي ايران",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثنور",
+    "name": "سرمايه گذاري كوه نور",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ثپرديس",
+    "name": "سرمايه گذاري مسكن پرديس",
+    "sector": "ساختمان/سرمایه‌گذاری",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "آ س پ",
+    "name": "آ.س.پ",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "آبين",
+    "name": "كشت و صنعت آبشيرين",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "آينده",
+    "name": "بازرگاني آينده سازان بهشت پارس",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "افرا",
+    "name": "افرانت",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "اوان",
+    "name": "مبين وان كيش",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "بالاس",
+    "name": "مهندسي ساختمان تاسيسات راه آهن",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "بايكا",
+    "name": "كارخانجات كابلسازي ‌ايران‌",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "بتك",
+    "name": "كارخانجات كابل سازي‌ تك‌",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "بكهنوج",
+    "name": "توليد برق ماهتاب كهنوج",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "بمپنا",
+    "name": "توليد برق عسلويه  مپنا",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "بهپاك",
+    "name": "صنعتي بهپاك",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "ذوب",
+    "name": "سهامي ذوب آهن  اصفهان",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "زدشت",
+    "name": "كشت و صنعت دشت خرم دره",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "زشگزا",
+    "name": "شير و گوشت زاگرس شهركرد",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "زفكا",
+    "name": "كشت و دامداري فكا",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "زقيام",
+    "name": "كشت و دام قيام اصفهان",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "زنگان",
+    "name": "صنعت روي زنگان",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "زگلدشت",
+    "name": "كشت و دام گلدشت نمونه اصفهان",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كابگن",
+    "name": "توليدي و صنعتي آبگينه‌",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كايتا",
+    "name": "ايتالران‌",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كباده",
+    "name": "توليد خاك نسوزاستقلال آباده",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كتوكا",
+    "name": "توليدي و خدمات صنايع نسوز توكا",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كرمان",
+    "name": "س. توسعه و عمران استان كرمان",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كقزوي",
+    "name": "شيشه‌ قزوين‌",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كمرجان",
+    "name": "بازرگاني و توليدي مرجان كار",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كمينا",
+    "name": "شيشه سازي مينا",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كورز",
+    "name": "ورزيران‌",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كي بي سي",
+    "name": "شركت كي بي سي",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كي بي سيح",
+    "name": "ح. شركت كي بي سي",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كيسون",
+    "name": "شركت كيسون",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كپرور",
+    "name": "فرآوري زغال سنگ پروده طبس",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كگهر",
+    "name": "سنگ آهن گهرزمين",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "ماديرا",
+    "name": "صنايع ماشين هاي اداري ايران",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "مفاخر",
+    "name": "توسعه فناوري اطلاعات خوارزمي",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "وآتوس",
+    "name": "س.آرين توسكا قيمت اسمي 350ريال",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "واحصا",
+    "name": "احياء صنايع خراسان",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "واحيا",
+    "name": "م .صنايع و معادن احياء سپاهان",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "وبرق",
+    "name": "س.کارکنان صنعت برق زنجان وقزوي",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "وسديد",
+    "name": "گروه ‌صنعتي‌سديد",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "وشمال",
+    "name": "س. چشم انداز توسعه شمال",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "وكادو",
+    "name": "تكادو",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "ولانا",
+    "name": "شركت ليزينگ آريا دانا",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "ولبهمن",
+    "name": "شركت بهمن ليزينگ",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "ولراز",
+    "name": "ليزينگ رازي",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "ولشرق",
+    "name": "ليزينگ ايران و شرق",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "ومشان",
+    "name": "س. فني و مهندسي مشانير",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "وهور",
+    "name": "مديريت انرژي اميد  تابان هور",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "گكوثر",
+    "name": "هتل پارسيان كوثر اصفهان",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "گكيش",
+    "name": "توريستي ورفاهي آبادگران كيش",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "گپارس",
+    "name": "امور رفاهي كارگزاران پارس",
+    "sector": "سایر",
+    "subindustry": "",
+    "sector_icon": "📊"
+  },
+  {
+    "symbol": "كصدف",
+    "name": "كاشي صدف سرام استقلال آباده",
+    "sector": "سرامیک",
+    "subindustry": "",
+    "sector_icon": "🏠"
+  },
+  {
+    "symbol": "ساذري",
+    "name": "آذريت‌",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ساروج",
+    "name": "بين المللي ساروج بوشهر",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سامان",
+    "name": "بانك سامان",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "ساينا",
+    "name": "صنايع بهداشتي ساينا",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سباقر",
+    "name": "سيمان باقران",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سجام",
+    "name": "مجتمع سيمان غرب آسيا",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سخواف",
+    "name": "سيمان مجد خواف",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سدبير",
+    "name": "س. تدبيرگران فارس وخوزستان",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سرچشمه",
+    "name": "سرمايه گذاري مس سرچشمه",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سفارود",
+    "name": "كارخانه فارسيت درود",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سفاسي",
+    "name": "شركت فارسيت اهواز",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سلار",
+    "name": "شركت سيمان لارستان",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سمايه",
+    "name": "بانك سرمايه",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سمتاز",
+    "name": "سيمان ممتازان كرمان",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سمگا",
+    "name": "گروه سرمايه گذاري ميراث فرهنگي",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سنوين",
+    "name": "سرمايه گذاري اقتصاد نوين",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "سپرمي",
+    "name": "پرميت‌",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "عخوز",
+    "name": "اوراق سلف سيمان خوزستان",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "عشرق",
+    "name": "اوراق سلف سيمان شركت سيمان شرق",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "كفرآور",
+    "name": "فرآورده هاي سيمان شرق",
+    "sector": "سیمان",
+    "subindustry": "",
+    "sector_icon": "🏗️"
+  },
+  {
+    "symbol": "شگامرن",
+    "name": "مجتمع پترو صنعت گامرون",
+    "sector": "شیمیایی",
+    "subindustry": "توليد مواد شيميايي پايه به جز كود",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "پارتا",
+    "name": "مجتمع‌صنعتي‌آرتاويل‌تاير",
+    "sector": "شیمیایی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "پخش",
+    "name": "پخش البرز",
+    "sector": "شیمیایی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "پشاهن",
+    "name": "توليدي پلاستيك‌ شاهين",
+    "sector": "شیمیایی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "پلاست",
+    "name": "كارخانجات توليدي پلاستيران",
+    "sector": "شیمیایی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "غديس",
+    "name": "پاكديس",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غشهداب",
+    "name": "كشت و صنعت شهداب ناب خراسان",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غشوكو",
+    "name": "شوكو پارس",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غصينو",
+    "name": "صنعتي مينو",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غفارس",
+    "name": "شير پاستوريزه پگاه فارس",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غمينو",
+    "name": "شركت صنايع غذايي مينو شرق",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غويتا",
+    "name": "ويتانا",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غيوان",
+    "name": "كيوان",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غپآذر",
+    "name": "شير پگاه آذربايجان شرقي",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غپونه",
+    "name": "نوش پونه مشهد",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غگز",
+    "name": "گز سكه",
+    "sector": "غذایی",
+    "subindustry": "توليد كاكائو، شكلات و شيريني جات",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غگلستا",
+    "name": "شير پاستوريزه پگاه گلستان",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "غگلپا",
+    "name": "شير پاستوريزه پگاه گلپايگان",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🍖"
+  },
+  {
+    "symbol": "قاسم",
+    "name": "قاسم ايران",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🌾"
+  },
+  {
+    "symbol": "قجام",
+    "name": "فرآوردههاي غذايي وقندتربت‌جام‌",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🌾"
+  },
+  {
+    "symbol": "قشير",
+    "name": "قند شيروان قوچان و بجنورد",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🌾"
+  },
+  {
+    "symbol": "قنقش",
+    "name": "قند نقش جهان",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🌾"
+  },
+  {
+    "symbol": "قچار",
+    "name": "فراوردههاي غذايي وقند چهارمحال",
+    "sector": "غذایی",
+    "subindustry": "",
+    "sector_icon": "🌾"
+  },
+  {
+    "symbol": "ارفع",
+    "name": "شركت آهن و فولاد ارفع",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "بميلا",
+    "name": "توسعه بازرگاني آهن وفولادميلاد",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "عفولاد",
+    "name": "اوراق سلف ورق گرم فولاد",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "عكاوه",
+    "name": "اوراق سلف شمش فولاد كاوه",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فافزا",
+    "name": "فولاد افزا سپاهان",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فالوم",
+    "name": "آلومتك‌",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فالومح",
+    "name": "ح.آلومتك‌",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فاهواز",
+    "name": "نورد و لوله اهواز",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فبستم",
+    "name": "صنايع ‌بسته‌بندي‌ مشهد",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فبيرا",
+    "name": "بسته‌ بندي‌ ايران‌",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فجوش",
+    "name": "جوش‌ و اكسيژن‌ ايران‌",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فرابورس",
+    "name": "فرابورس ايران",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فزرين",
+    "name": "زرين معدن آسيا",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فسا",
+    "name": "پتروشيمي فسا",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فسديد",
+    "name": "لوله‌وتجهيزات‌ سديد - ورشكسته",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فسلير",
+    "name": "سوليران‌",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فلات",
+    "name": "گروه صنايع معادن فلات ايرانيان",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فماك",
+    "name": "ماداكتو استيل كرد",
+    "sector": "فلزات اساسی",
+    "subindustry": "توليد آهن و فولاد پايه",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فن آوا",
+    "name": "گروه فن آوا",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فنرژي",
+    "name": "گسترش صنايع انرژي آذرآب",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فوكا",
+    "name": "فولاد كاويان",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "فولاي",
+    "name": "صنايع فولاد آلياژي يزد",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "هرمز",
+    "name": "فولاد هرمزگان جنوب",
+    "sector": "فلزات اساسی",
+    "subindustry": "",
+    "sector_icon": "🔩"
+  },
+  {
+    "symbol": "رايان",
+    "name": "مشاركت رايان سايپا 3 ماهه 22%",
+    "sector": "فناوری اطلاعات",
+    "subindustry": "",
+    "sector_icon": "💻"
+  },
+  {
+    "symbol": "رفاه",
+    "name": "فروشگاه هاي زنجيره اي رفاه",
+    "sector": "فناوری اطلاعات",
+    "subindustry": "",
+    "sector_icon": "💻"
+  },
+  {
+    "symbol": "ريشمك",
+    "name": "توليد و صادرات ريشمك",
+    "sector": "فناوری اطلاعات",
+    "subindustry": "",
+    "sector_icon": "💻"
+  },
+  {
+    "symbol": "تابا",
+    "name": "تابان نيرو سپاهان",
+    "sector": "فناوری/ارتباطات",
+    "subindustry": "",
+    "sector_icon": "📱"
+  },
+  {
+    "symbol": "تاپكيش",
+    "name": "تجارت الكترونيك پارسيان كيش",
+    "sector": "فناوری/ارتباطات",
+    "subindustry": "",
+    "sector_icon": "📱"
+  },
+  {
+    "symbol": "تبرك",
+    "name": "گروه كارخانجات صنعتي تبرك",
+    "sector": "فناوری/ارتباطات",
+    "subindustry": "",
+    "sector_icon": "📱"
+  },
+  {
+    "symbol": "تشتاد",
+    "name": "صنايع توليدي اشتاد ايران‌",
+    "sector": "فناوری/ارتباطات",
+    "subindustry": "",
+    "sector_icon": "📱"
+  },
+  {
+    "symbol": "تكنار",
+    "name": "مجتمع معادن مس تكنار",
+    "sector": "فناوری/ارتباطات",
+    "subindustry": "",
+    "sector_icon": "📱"
+  },
+  {
+    "symbol": "تليسه",
+    "name": "دامداري تليسه نمونه",
+    "sector": "فناوری/ارتباطات",
+    "subindustry": "",
+    "sector_icon": "📱"
+  },
+  {
+    "symbol": "توريل",
+    "name": "توکاريل",
+    "sector": "فناوری/ارتباطات",
+    "subindustry": "",
+    "sector_icon": "📱"
+  },
+  {
+    "symbol": "توسعه",
+    "name": "اعتباري توسعه",
+    "sector": "فناوری/ارتباطات",
+    "subindustry": "",
+    "sector_icon": "📱"
+  },
+  {
+    "symbol": "تپكو",
+    "name": "توليدتجهيزات‌سنگين‌هپكو",
+    "sector": "فناوری/ارتباطات",
+    "subindustry": "",
+    "sector_icon": "📱"
+  },
+  {
+    "symbol": "تپولا",
+    "name": "مهندسي مرآت پولاد",
+    "sector": "فناوری/ارتباطات",
+    "subindustry": "",
+    "sector_icon": "📱"
+  },
+  {
+    "symbol": "لازما",
+    "name": "كارخانه هاي صنعتي آزمايش",
+    "sector": "لاستیک",
+    "subindustry": "",
+    "sector_icon": "🔴"
+  },
+  {
+    "symbol": "لخانه",
+    "name": "لوازم‌ خانگي‌ پارس‌",
+    "sector": "لاستیک",
+    "subindustry": "",
+    "sector_icon": "🔴"
+  },
+  {
+    "symbol": "لكما",
+    "name": "كارخانجات‌مخابراتي‌ايران‌",
+    "sector": "لاستیک",
+    "subindustry": "",
+    "sector_icon": "🔴"
+  },
+  {
+    "symbol": "لپيام",
+    "name": "گسترش صنايع پيام",
+    "sector": "لاستیک",
+    "subindustry": "",
+    "sector_icon": "🔴"
+  },
+  {
+    "symbol": "عنتخاب",
+    "name": "اوراق سلف پلي استايرن انتخاب",
+    "sector": "لاستیک و پلاستیک",
+    "subindustry": "",
+    "sector_icon": "🔴"
+  },
+  {
+    "symbol": "كشرق",
+    "name": "صنعتي و معدني شمال شرق شاهرود",
+    "sector": "معدنی",
+    "subindustry": "",
+    "sector_icon": "⛏️"
+  },
+  {
+    "symbol": "كيميا",
+    "name": "معدني كيمياي زنجان گستران",
+    "sector": "معدنی",
+    "subindustry": "",
+    "sector_icon": "⛏️"
+  },
+  {
+    "symbol": "نتوس",
+    "name": "پشم‌ بافي‌ توس",
+    "sector": "نساجی",
+    "subindustry": "",
+    "sector_icon": "🧵"
+  },
+  {
+    "symbol": "نشار",
+    "name": "كارخانجات پشمبافي افشار يزد",
+    "sector": "نساجی",
+    "subindustry": "",
+    "sector_icon": "🧵"
+  },
+  {
+    "symbol": "نطرين",
+    "name": "عطرين نخ قم",
+    "sector": "نساجی",
+    "subindustry": "",
+    "sector_icon": "🧵"
+  },
+  {
+    "symbol": "نوين",
+    "name": "بيمه نوين",
+    "sector": "نساجی",
+    "subindustry": "",
+    "sector_icon": "🧵"
+  },
+  {
+    "symbol": "نيرو",
+    "name": "نيرو سرمايه",
+    "sector": "نساجی",
+    "subindustry": "",
+    "sector_icon": "🧵"
+  },
+  {
+    "symbol": "آريان",
+    "name": "سرمايه گذاري پارس آريان",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "اعتلا",
+    "name": "شركت سرمايه گذاري اعتلاء البرز",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "ميدكو",
+    "name": "هلدينگ صنايع  معدني خاورميانه",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "وارس",
+    "name": "سرمايه گذاري ارس صبا",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "وايرا",
+    "name": "سرمايه گذاري صنايع ايران",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "وثخوز",
+    "name": "سرمايه گذاري و توسعه خوزستان",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "وثنو",
+    "name": "سرمايه گذاري ساختماني نوين",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "وثوق",
+    "name": "سرمايه گذاري وثوق امين",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "وجامي",
+    "name": "سرمايه گذاري جامي",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "وسبحان",
+    "name": "سرمايه گذاري سبحان",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "وسنا",
+    "name": "سرمايه گذاري نيروگاهي ايران",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "وملت",
+    "name": "سرمايه گذاري ملت",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "گوهران",
+    "name": "سرمايه گذاري توسعه گوهران اميد",
+    "sector": "هلدینگ",
+    "subindustry": "",
+    "sector_icon": "🏢"
+  },
+  {
+    "symbol": "شاوان",
+    "name": "پالايش نفت لاوان",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شبصير",
+    "name": "توليدات پتروشيمي قائد بصير",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شتهران",
+    "name": "داروسازي تهران شيمي",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شتوكا",
+    "name": "توكا رنگ فولاد سپاهان",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شتولي",
+    "name": "تولي‌پرس‌",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شراز",
+    "name": "پالايش نفت شيراز",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شرانل",
+    "name": "نفت ايرانول",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شرنگي",
+    "name": "شيميايي رنگين",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شزنگ",
+    "name": "تجهيزنيروي‌زنگان‌",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شستان",
+    "name": "پتروشيمي گلستان",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شسم",
+    "name": "توليد سموم‌ علف‌ كش",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شصفها",
+    "name": "پتروشيمي‌ اصفهان‌",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شغدير",
+    "name": "پتروشيمي غدير",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شفارا",
+    "name": "پتروشيمي فارابي",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شكبير",
+    "name": "پتروشيمي اميركبير",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شكف",
+    "name": "كف",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شلرد",
+    "name": "كود شيميايي اوره لردگان",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شمواد",
+    "name": "توليد مواداوليه الياف مصنوعي",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شپاس",
+    "name": "نفت پاسارگاد",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "شپلي",
+    "name": "پلي اكريل ايران",
+    "sector": "پالایشی",
+    "subindustry": "",
+    "sector_icon": "⛽"
+  },
+  {
+    "symbol": "جهرم",
+    "name": "پتروشيمي جهرم",
+    "sector": "پتروشیمی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "زاگرس",
+    "name": "پتروشيمي زاگرس",
+    "sector": "پتروشیمی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "شجم",
+    "name": "صنايع پتروشيمي تخت جمشيد",
+    "sector": "پتروشیمی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "كازرو",
+    "name": "پتروشيمي كازرون",
+    "sector": "پتروشیمی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "مارون",
+    "name": "پتروشيمي مارون",
+    "sector": "پتروشیمی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "ممسني",
+    "name": "پتروشيمي ممسني",
+    "sector": "پتروشیمی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "وپسا",
+    "name": "س. پتروشيمي ساختمان  خليج فارس",
+    "sector": "پتروشیمی",
+    "subindustry": "",
+    "sector_icon": "🧪"
+  },
+  {
+    "symbol": "چكاپا",
+    "name": "گروه  صنايع كاغذ پارس",
+    "sector": "کاغذ/چوب/چاپ",
+    "subindustry": "",
+    "sector_icon": "📄"
+  },
+  {
+    "symbol": "چنوپا",
+    "name": "نيوپان‌ 22 بهمن‌",
+    "sector": "کاغذ/چوب/چاپ",
+    "subindustry": "",
+    "sector_icon": "📄"
+  },
+  {
+    "symbol": "زبينا",
+    "name": "كشاورزي و دامپروري بينالود",
+    "sector": "کشاورزی",
+    "subindustry": "",
+    "sector_icon": "🌱"
+  },
+  {
+    "symbol": "زكشت",
+    "name": "كشاورزي مكانيزه اصفهان كشت",
+    "sector": "کشاورزی",
+    "subindustry": "",
+    "sector_icon": "🌱"
+  },
+  {
+    "symbol": "زنجان",
+    "name": "صنايع كشاورزي وكود زنجان",
+    "sector": "کشاورزی",
+    "subindustry": "",
+    "sector_icon": "🌱"
+  }
+]

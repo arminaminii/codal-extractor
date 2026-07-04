@@ -1,80 +1,67 @@
+import json
+from pathlib import Path
+
 from django.core.management.base import BaseCommand
 
 from reports.models import Company
 
 
-COMPANIES = [
-    ("فولاد", "شرکت فولاد مبارکه اصفهان", "فلزات اساسی", "🔩"),
-    ("خودرو", "ایران خودرو", "خودرویی", "🚗"),
-    ("خساپا", "سایپا", "خودرویی", "🚗"),
-    ("فملی", "ملی صنایع مس ایران", "فلزات اساسی", "🔩"),
-    ("کچاد", "مجتمع معدنی چادرملو", "معدنی", "⛏️"),
-    ("شبندر", "پالایش نفت بندرعباس", "پالایشی", "⛽"),
-    ("پارس", "پتروشیمی پارس", "شیمیایی", "🧪"),
-    ("شپنا", "پتروشیمی نیشکر و بیوالکول ایران", "شیمیایی", "🧪"),
-    ("جم", "پتروشیمی جم", "شیمیایی", "🧪"),
-    ("وغدیر", "سرمایه‌گذاری غدیر", "سرمایه‌گذاری", "💼"),
-    ("وامید", "سرمایه‌گذاری امید", "سرمایه‌گذاری", "💼"),
-    ("وبملت", "بانک ملت", "بانکی", "🏦"),
-    ("وبصادر", "بانک صادرات ایران", "بانکی", "🏦"),
-    ("وتجارت", "بانک تجارت", "بانکی", "🏦"),
-    ("پاسار", "پتروشیمی پاسارگاد", "شیمیایی", "🧪"),
-    ("شفن", "مخابرات ایران", "ارتباطات", "📱"),
-    ("همتا", "همتا", "ارتباطات", "📱"),
-    ("خبهام", "بهنوش ایران", "غذایی", "🍖"),
-    ("سپیدار", "سپیدار我们来", "ساختمانی", "🏗️"),
-    ("ثمسکن", "سرمایه‌گذاری مسکن", "ساختمانی", "🏗️"),
-    ("ثاباد", "آ.اس.پ (آساس)", "سرمایه‌گذاری", "💼"),
-    ("وگردش", "گردشگری و خدمات ایران", "گردشگری", "✈️"),
-    ("شتران", "پالایش نفت تهران", "پالایشی", "⛽"),
-    ("شبریز", "پالایش نفت تبریز", "پالایشی", "⛽"),
-    ("شپارس", "پتروشیمی پارس", "شیمیایی", "🧪"),
-    ("شیران", "پالایش نفت ایرانشهر", "پالایشی", "⛽"),
-    ("فخوز", "فولاد خوزستان", "فلزات اساسی", "🔩"),
-    ("فجر", "فولاد جم", "فلزات اساسی", "🔩"),
-    ("ذوب", "ذوب آهن اصفهان", "فلزات اساسی", "🔩"),
-    ("کگل", "گلوکوزان پارس", "غذایی", "🍖"),
-    ("بهداشت", "بهداشت کیش", "دارویی", "💊"),
-    ("دعبید", "عبید", "دارویی", "💊"),
-    ("سخزر", "زرین ماکارون", "غذایی", "🍖"),
-    ("قنیشا", "گندم قنیشات", "غذایی", "🌾"),
-    ("آسیا", "توسعه مالی ایران (آسیا)", "سرمایه‌گذاری", "💼"),
-    ("لپارس", "پارس خودرو", "خودرویی", "🚗"),
-    ("خزر", "خزر موتور", "خودرویی", "🚗"),
-    ("پلوله", "لوله و ماشین‌سازی ایران", "ساختمانی", "🏗️"),
-    ("ثشاهد", "شهداب ایران", "ساختمانی", "🏗️"),
-    ("سمگن", "مگنت", "سیمان", "🏗️"),
-    ("ستران", "سیمان تهران", "سیمان", "🏗️"),
-    ("شنفت", "پالایش نفت شازند", "پالایشی", "⛽"),
-    # ("شبندر", "پالایش نفت بندرعباس", "پالایشی", "⛽"),  # duplicate, removed
-    ("شاملا", "پتروشیمی شازند", "شیمیایی", "🧪"),
-]
-
-
 class Command(BaseCommand):
-    help = "پاک‌سازی و پر کردن جدول شرکت‌ها با داده‌های پیش‌فرض"
+    help = "پر کردن جدول شرکت‌ها از فایل data/companies.json (منبع: sahebi/tse GitHub)"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--file",
+            type=str,
+            default=None,
+            help="مسیر فایل JSON. پیش‌فرض: reports/data/companies.json",
+        )
 
     def handle(self, *args, **options):
+        # مسیر فایل
+        default_path = Path(__file__).resolve().parent.parent.parent / "data" / "companies.json"
+        file_path = Path(options["file"]) if options["file"] else default_path
+
+        if not file_path.exists():
+            self.stderr.write(self.style.ERROR(f"فایل {file_path} یافت نشد!"))
+            return
+
+        # خواندن JSON
+        with open(file_path, "r", encoding="utf-8") as f:
+            companies_data = json.load(f)
+
+        # پاک‌سازی قبلی
         Company.objects.all().delete()
         self.stdout.write("تمام رکوردهای قبلی پاک شدند.")
 
-        # Deduplicate by symbol (keep first occurrence)
+        # ساخت آبجکت‌ها
+        company_objects = []
         seen_symbols = set()
-        unique_companies = []
-        for item in COMPANIES:
-            symbol = item[0]
-            if symbol not in seen_symbols:
-                seen_symbols.add(symbol)
-                unique_companies.append(Company(
-                    symbol=item[0],
-                    name=item[1],
-                    sector=item[2],
-                    sector_icon=item[3],
-                ))
+        for item in companies_data:
+            symbol = item.get("symbol", "").strip()
+            if not symbol or symbol in seen_symbols:
+                continue
+            seen_symbols.add(symbol)
 
-        Company.objects.bulk_create(unique_companies)
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"✅ {len(unique_companies)} شرکت با موفقیت ایجاد شدند."
-            )
-        )
+            company_objects.append(Company(
+                symbol=symbol,
+                name=item.get("name", "").strip(),
+                sector=item.get("sector", "").strip(),
+                sector_icon=item.get("sector_icon", "📊"),
+            ))
+
+        # ذخیره
+        Company.objects.bulk_create(company_objects)
+
+        # آمار
+        sector_counts = {}
+        for c in company_objects:
+            sector_counts[c.sector] = sector_counts.get(c.sector, 0) + 1
+
+        self.stdout.write("")
+        self.stdout.write(self.style.SUCCESS(f"✅ {len(company_objects)} شرکت از فایل ایجاد شدند."))
+        self.stdout.write(f"   منبع: {file_path.name}")
+        self.stdout.write("")
+        self.stdout.write("=== توزیع صنایع ===")
+        for sector, count in sorted(sector_counts.items(), key=lambda x: -x[1]):
+            self.stdout.write(f"   {count:4d}  |  {sector}")
