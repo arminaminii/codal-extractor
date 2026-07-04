@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}انتخاب شرکت - کدال اکسپرت{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Search Card -->
+    <div class="search-card">
+        <div class="search-card-header">
+            <h2>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--neon-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                </svg>
+                جستجوی شرکت
+            </h2>
+            <p>نام نماد یا شرکت را وارد کنید — مثلاً «بیمه»، «فولاد» یا «ایران خودرو»</p>
+        </div>
+
+        <form method="get" action="{% url 'home' %}" id="searchForm">
+            <div class="search-wrapper">
+                <div class="search-input-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input type="text" name="symbol" id="symbolInput" placeholder="نام نماد یا شرکت..." class="search-input" autocomplete="off" autofocus maxlength="100">
+                </div>
+                <button type="submit" class="search-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg>
+                    مشاهده گزارش‌ها
+                </button>
+                <div id="suggestionsBox" class="suggestions-box"></div>
+            </div>
+        </form>
+
+        <!-- Sector Dropdown -->
+        <div class="sector-dropdown-wrap">
+            <button type="button" class="sector-dropdown-btn" id="sectorDropdownBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                انتخاب صنعت...
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="sector-dropdown-panel" id="sectorDropdownPanel">
+                <div class="sector-dropdown-search">
+                    <input type="text" id="sectorDropdownSearch" placeholder="جستجوی صنعت...">
+                </div>
+                <div class="sector-dropdown-list">
+                    {% for s in sectors %}
+                    <div class="sector-dropdown-item" data-sector="{{ s.name }}" onclick="window._selectSector('{{ s.name }}')">
+                        <span>{{ s.icon }}</span>
+                        <span>{{ s.name }}</span>
+                        <span class="sector-item-count">({{ s.count }})</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="sector-selected-badge" id="sectorClearBtn" style="display:none;">
+                <span id="sectorClearText"></span>
+                <button type="button" onclick="document.getElementById('sectorClearBtn').click()" style="background:none;border:none;cursor:pointer;font-family:inherit;font-size:0.78rem;color:var(--neon-cyan);padding:0 0.2rem;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Tags -->
+        <div class="quick-tags">
+            <span class="quick-tags-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                پرطرفدار:
+            </span>
+            <a href="/reports/%D9%81%D9%88%D9%84%D8%A7%D8%AF/" class="tag">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M16 7V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v3"/></svg>
+                فولاد
+            </a>
+            <a href="/reports/%D8%AE%D9%88%D8%AF%D8%B1%D9%88/" class="tag">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5a2 2 0 0 1-2 2h-1"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                خودرو
+            </a>
+            <a href="/reports/%D8%B4%D8%A8%D9%86%D8%AF%D8%B1/" class="tag">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6m0 8v6M4.93 4.93l4.24 4.24m5.66 5.66l4.24 4.24M2 12h6m8 0h6M4.93 19.07l4.24-4.24m5.66-5.66l4.24-4.24"/></svg>
+                شبندر
+            </a>
+            <a href="/reports/%D9%81%D8%A7%D8%B1%D8%B3/" class="tag">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                فارس
+            </a>
+            <a href="/reports/%D9%88%D8%A8%D9%85%D9%84%D8%AA/" class="tag">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/><path d="M9 9h.01M9 12h.01M9 15h.01M9 18h.01"/></svg>
+                وبملت
+            </a>
+            <a href="/reports/%D9%88%D8%BA%D8%AF%DB%8C%D8%B1/" class="tag">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                وغدیر
+            </a>
+        </div>
+    </div>
+
+    <!-- Company Grid (loaded by AJAX when sector selected) -->
+    <div class="company-grid-section" id="companyGridSection">
+        <div id="companyGrid"></div>
+    </div>
+
+</div>
+{% endblock %}

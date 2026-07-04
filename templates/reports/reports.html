@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}گزارش‌های {{ symbol }} - کدال اکسپرت{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="/">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            صفحه اصلی
+        </a>
+        <span class="sep">/</span>
+        <a href="/">{{ symbol }}</a>
+        <span class="sep">/</span>
+        <span class="current">گزارش‌ها</span>
+    </nav>
+
+    {% if not announcements and not company_info %}
+    <div class="alert-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <p>اطلاعیه‌ای برای «{{ symbol }}» یافت نشد. لطفاً نام نماد را بررسی کنید.</p>
+    </div>
+    {% else %}
+
+    <!-- Company Banner -->
+    {% if company_info %}
+    <div class="company-banner">
+        <div class="company-banner-icon">{{ company_info.sector_icon }}</div>
+        <div class="company-banner-info">
+            <div class="company-banner-symbol">{{ company_info.symbol }}</div>
+            <div class="company-banner-name">{{ company_info.name }}</div>
+        </div>
+        <div class="company-sector-badge">{{ company_info.sector }}</div>
+        <div class="company-results-count">
+            <span class="count-num">{{ total_results }}</span>
+            <span class="count-label">اطلاعیه</span>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not announcements %}
+    <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <p>اطلاعیه‌ای برای این نماد در سامانه کدال یافت نشد</p>
+    </div>
+    {% else %}
+
+    <!-- Category Filter Bar -->
+    {% if categories %}
+    <div class="category-filter-bar">
+        <a href="{% url 'reports' symbol=symbol %}" class="category-filter-btn {% if not category_filter %}active{% endif %}" style="{% if not category_filter %}background:rgba(34,211,238,0.15);border-color:var(--neon-cyan);color:var(--neon-cyan);{% endif %}">
+            همه
+            <span class="cat-count">({{ total_results }})</span>
+        </a>
+        {% for cat in categories %}
+        {% with cat_count=announcements|length %}
+        {% endwith %}
+        <a href="{% url 'reports' symbol=symbol %}?category={{ cat.category }}" class="category-filter-btn {% if category_filter == cat.category %}active{% endif %}" style="{% if category_filter == cat.category %}background:{{ cat.color }}20;border-color:{{ cat.color }};color:{{ cat.color }};{% endif %}">
+            <span class="cat-dot" style="background:{{ cat.color }};"></span>
+            {{ cat.label }}
+            <span class="cat-count">({{ cat.count }})</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if category_filter and not announcements %}
+    <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <p>گزارشی در این دسته‌بندی یافت نشد</p>
+    </div>
+    {% else %}
+
+    <!-- Results Table -->
+    <div class="results-table-wrap">
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th class="col-row">#</th>
+                    <th class="col-title">عنوان اطلاعیه</th>
+                    <th class="col-type">نوع گزارش</th>
+                    <th class="col-code">کد نامه</th>
+                    <th class="col-date">تاریخ انتشار</th>
+                    <th class="col-action">مشاهده</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ann in announcements %}
+                <tr>
+                    <td class="col-row"><span class="row-num">{{ forloop.counter }}</span></td>
+                    <td class="col-title">
+                        <span class="announcement-title">{{ ann.title }}</span>
+                        <span class="announcement-tracking">شناسه: {{ ann.tracking_id }}</span>
+                    </td>
+                    <td class="col-type">
+                        <span class="cat-badge" style="background:{{ ann.category_color }}20;color:{{ ann.category_color }};">{{ ann.category_label }}</span>
+                    </td>
+                    <td class="col-code">
+                        {% if ann.letter_code %}
+                        <span class="letter-code-badge">{{ ann.letter_code }}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="col-date">
+                        {% if ann.publish_date %}
+                        <span class="persian-date">{{ ann.publish_date|date:"Y/m/d H:i" }}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="col-action">
+                        <a href="{{ ann.direct_link }}" target="_blank" rel="noopener noreferrer" class="view-link">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                            کدال
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% endif %}
+    {% endif %}
+
+</div>
+{% endblock %}

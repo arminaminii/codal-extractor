@@ -10,14 +10,13 @@ from .models import Announcement, Company
 
 logger = logging.getLogger(__name__)
 
-# --- آدرس API کدال (بر اساس کتابخانه codalpy و codaler) ---
+# --- Codal API URL ---
 CODAL_SEARCH_URL = "https://search.codal.ir/api/search/v2/q"
 
-# --- پارامترهای پیش‌فرض (بر اساس سورس‌کد واقعی codalpy) ---
-# مرجع: https://github.com/yghaderi/codalpy/blob/master/codalpy/utils/query.py
+# --- Default params (PublisherType=1 is REQUIRED, CompanyState=0) ---
 DEFAULT_PARAMS = {
     "Category": -1,
-    "PublisherType": 1,        # ناشران — این پارامتر الزامی است
+    "PublisherType": 1,        # ناشران — REQUIRED
     "LetterType": -1,
     "Audited": True,
     "NotAudited": True,
@@ -44,8 +43,7 @@ HEADERS = {
 
 def _parse_codal_date(date_str: str) -> datetime | None:
     """
-    تاریخ کدال در فرمت /Date(1234567890000)/ برمی‌گرداند.
-    این تابع آن را به شیء datetime تبدیل می‌کند.
+    Parse Codal /Date(ms)/ format into a datetime object.
     """
     if not date_str:
         return None
@@ -61,21 +59,18 @@ def fetch_announcements_from_codal(
     symbol: str, length: int = -1, page: int = 1
 ) -> list[dict]:
     """
-    ارسال درخواست GET به API کدال و دریافت لیست اطلاعیه‌ها.
-
-    مرجع: https://github.com/yghaderi/codalpy
-    مرجع: https://github.com/mostafaasadi/codaler
+    Send GET request to Codal API and retrieve list of announcements.
 
     Args:
-        symbol: نام نماد بورسی (مثلاً "فولاد")
-        length: تعداد نتایج درخواستی (پیش‌فرض -1 = همه)
-        page: شماره صفحه (پیش‌فرض ۱)
+        symbol: Stock symbol (e.g. "فولاد")
+        length: Number of results (-1 = all)
+        page: Page number
 
     Returns:
-        لیست دیکشنری‌های حاوی اطلاعات اطلاعیه‌ها
+        List of dicts with announcement data
 
     Raises:
-        requests.RequestException: در صورت بروز خطای شبکه
+        requests.RequestException: On network error
     """
     params = {
         **DEFAULT_PARAMS,
@@ -85,7 +80,7 @@ def fetch_announcements_from_codal(
     }
 
     logger.info(
-        "ارسال درخواست GET به API کدال برای نماد: %s | پارامترها: %s",
+        "Sending GET request to Codal API for symbol: %s | params: %s",
         symbol,
         params,
     )
@@ -101,7 +96,7 @@ def fetch_announcements_from_codal(
     data = response.json()
 
     if "Letters" not in data:
-        logger.warning("پاسخ API کدال فیلد Letters ندارد. پاسخ: %s", str(data)[:300])
+        logger.warning("Codal API response missing 'Letters' field. Response: %s", str(data)[:300])
         return []
 
     letters = data.get("Letters", [])
@@ -115,7 +110,7 @@ def fetch_announcements_from_codal(
         publish_date = _parse_codal_date(item.get("PublishDateTime", ""))
         letter_code = item.get("LetterCode", "")
 
-        # ساخت لینک مستقیم (codalpy از فیلد Url استفاده می‌کند)
+        # Build direct link (relative Url → prefix with https://www.codal.ir)
         raw_url = item.get("Url", "")
         if raw_url:
             if raw_url.startswith("/"):
@@ -141,7 +136,7 @@ def fetch_announcements_from_codal(
             }
         )
 
-    logger.info("دریافت %d اطلاعیه برای نماد %s از API کدال", len(results), symbol)
+    logger.info("Received %d announcements for symbol %s from Codal API", len(results), symbol)
     return results
 
 
@@ -165,7 +160,7 @@ def save_announcements_to_db(announcements_data: list[dict]) -> int:
             saved_count += 1
 
     logger.info(
-        "ذخیره/بروزرسانی %d رکورد جدید از مجموع %d اطلاعیه",
+        "Saved/updated %d new records out of %d announcements",
         saved_count,
         len(announcements_data),
     )
@@ -174,25 +169,24 @@ def save_announcements_to_db(announcements_data: list[dict]) -> int:
 
 def get_or_fetch_announcements(symbol: str) -> list[Announcement]:
     """
-    تابع اصلی: ابتدا دیتابیس را چک می‌کند.
-    اگر رکوردی وجود نداشت، از API کدال می‌گیرد و ذخیره می‌کند.
+    Main function: check DB first, then fetch from Codal API if needed.
     """
     existing = Announcement.objects.filter(symbol=symbol).order_by("-publish_date")
 
     if existing.exists():
         logger.info(
-            "یافت شد %d رکورد موجود در دیتابیس برای نماد %s",
+            "Found %d existing records in DB for symbol %s",
             existing.count(),
             symbol,
         )
         return list(existing)
 
-    logger.info("رکوردی در دیتابیس یافت نشد. استخراج از کدال برای نماد: %s", symbol)
+    logger.info("No records in DB. Fetching from Codal for symbol: %s", symbol)
 
     try:
         announcements_data = fetch_announcements_from_codal(symbol)
     except requests.RequestException as e:
-        logger.error("خطا در ارتباط با API کدال: %s", str(e))
+        logger.error("Error connecting to Codal API: %s", str(e))
         raise
 
     save_announcements_to_db(announcements_data)
@@ -202,15 +196,57 @@ def get_or_fetch_announcements(symbol: str) -> list[Announcement]:
     )
 
 
+def categorize_letter_code(letter_code: str) -> dict:
+    """
+    Map a Codal LetterCode to a category with label and color.
+
+    Returns:
+        dict with keys: category, label, color
+    """
+    lc = (letter_code or "").strip()
+
+    # Assembly — مجامع عمومی (check FIRST before generic ن-)
+    if any(kw in lc for kw in ("مجمع", "ن-۵۶", "ن-۵۷", "ن-۵۸", "ن-۵۹", "ن-۶۰")):
+        return {"category": "assembly", "label": "مجامع عمومی", "color": "#a78bfa"}
+
+    # Management report — گزارش تفسیری / هیئت مدیره (ن-۲)
+    if lc in ("ن-۲", "N-2") or any(kw in lc for kw in ("هیئت مدیره", "گزارش فعالیت")):
+        return {"category": "management", "label": "گزارش هیئت مدیره", "color": "#fb923c"}
+
+    # Monthly report — گزارش ماهانه
+    if any(kw in lc for kw in ("ماهانه", "گ.م", "فعالیت ماهانه")):
+        return {"category": "monthly", "label": "گزارش ماهانه", "color": "#60a5fa"}
+
+    # Capital increase — افزایش سرمایه
+    if any(kw in lc for kw in ("افزایش سرمایه", "حق تقدم", "ن-۲۶")):
+        return {"category": "capital_increase", "label": "افزایش سرمایه", "color": "#34d399"}
+
+    # Dividend — سود نقدی (before disclosure, exclude "سود و زیان")
+    if ("سود" in lc or "تقسیم" in lc) and "سود و زیان" not in lc:
+        return {"category": "dividend", "label": "سود نقدی", "color": "#f472b6"}
+
+    # Disclosure — افشای اطلاعات بااهمیت
+    if any(kw in lc for kw in ("الف", "ب", "شم", "افشا", "ش.", "اطلاعات با اهمیت")):
+        return {"category": "disclosure", "label": "افشای اطلاعات بااهمیت", "color": "#f59e0b"}
+
+    # Financial statements — صورت‌های مالی (general ن- prefix)
+    if lc in ("N-1", "ن-۱") or lc.startswith("ن-"):
+        return {"category": "financial", "label": "صورت‌های مالی", "color": "#22d3ee"}
+
+    # Other — سایر
+    return {"category": "other", "label": "سایر", "color": "#64748b"}
+
+
 def search_companies(query: str, limit: int = 12, sector: str = "") -> list[dict]:
     """
-    جستجوی هوشمند شرکت‌ها با امتیازدهی:
+    Smart company search with scoring:
 
-    1. شروع با نماد (exact) → score 100
-    2. شروع با نام شرکت → score 90
-    3. شامل نماد → score 70
-    4. شامل نام شرکت → score 50
-    5. شامل کلمه‌ای از نام → score 30
+    1. Exact symbol match → score 100
+    2. Symbol starts with query → score 85
+    3. Company name starts with query → score 90
+    4. Symbol contains query → score 70
+    5. Name contains query → score 60
+    6. Fuzzy (word match) → score 30
     """
     if not query or len(query) < 1:
         return []
@@ -218,12 +254,12 @@ def search_companies(query: str, limit: int = 12, sector: str = "") -> list[dict
     query_clean = query.strip()
     query_lower = query_clean.lower()
 
-    # فیلتر صنعت
+    # Sector filter
     queryset = Company.objects.all()
     if sector:
         queryset = queryset.filter(sector=sector)
 
-    # برداشت اولیه (حداکثر ۵۰ تا برای امتیازدهی)
+    # Initial fetch (max 50 for scoring)
     raw_results = list(queryset.filter(
         db_models.Q(symbol__icontains=query_lower) |
         db_models.Q(name__icontains=query_lower)
@@ -252,7 +288,7 @@ def search_companies(query: str, limit: int = 12, sector: str = "") -> list[dict
             score = 60
             match_type = "contains_name"
         else:
-            # بررسی هر کلمه از کوئری
+            # Check each word from the query
             words = query_lower.split()
             word_matches = sum(1 for w in words if w in sym_lower or w in name_lower)
             if word_matches > 0:
@@ -269,7 +305,7 @@ def search_companies(query: str, limit: int = 12, sector: str = "") -> list[dict
                 "match_type": match_type,
             })
 
-    # مرتب‌سازی بر اساس امتیاز
+    # Sort by score descending
     scored.sort(key=lambda x: -x["score"])
 
     return scored[:limit]
@@ -277,7 +313,7 @@ def search_companies(query: str, limit: int = 12, sector: str = "") -> list[dict
 
 def get_all_sectors() -> list[dict]:
     """
-    دریافت لیست تمام صنایع با تعداد شرکت‌ها.
+    Get list of all sectors with company counts.
     """
     from django.db.models import Count
 
@@ -295,21 +331,37 @@ def get_all_sectors() -> list[dict]:
     ]
 
 
+def get_companies_by_sector(sector: str) -> list[dict]:
+    """
+    Get all companies in a given sector, ordered by symbol.
+    """
+    companies = Company.objects.filter(sector=sector).order_by("symbol")
+    return [
+        {
+            "symbol": c.symbol,
+            "name": c.name,
+            "sector": c.sector,
+            "sector_icon": c.sector_icon,
+        }
+        for c in companies
+    ]
+
+
 def resolve_search_query(query: str) -> str:
     """
-    اگر کاربر نام شرکت را تایپ کرد، نماد مربوطه را برمی‌گرداند.
-    در غیر این صورت همان عبارت را برمی‌گرداند.
+    If the user typed a company name, resolve it to the symbol.
+    Otherwise return the input as-is.
     """
     query_clean = query.strip()
 
-    # اول جستجوی دقیق بر اساس نماد
+    # Exact symbol match first
     try:
         company = Company.objects.get(symbol=query_clean)
         return company.symbol
     except Company.DoesNotExist:
         pass
 
-    # جستجو بر اساس نام شرکت
+    # Search by company name
     matches = Company.objects.filter(name__icontains=query_clean)[:1]
     if matches:
         return matches[0].symbol
