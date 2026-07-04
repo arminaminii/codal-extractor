@@ -56,10 +56,9 @@ def _parse_codal_date(date_str: str) -> datetime | None:
     return None
 
 
-# Codal API ignores Length=-1 and defaults to ~20 per page.
-# It also caps Length at 20, so we use 20 and paginate properly.
-PAGE_SIZE = 20
-MAX_PAGES = 200  # safety limit (200 * 20 = 4000 max per symbol)
+# Codal API returns ~20 results when Length=-1.
+# We paginate with PageNumber and stop when no new unique results appear.
+MAX_PAGES = 200  # safety limit
 
 
 def _parse_letter(letter: dict, symbol: str) -> dict | None:
@@ -99,14 +98,13 @@ def _parse_letter(letter: dict, symbol: str) -> dict | None:
 
 
 def fetch_announcements_from_codal(
-    symbol: str, length: int = PAGE_SIZE, page: int = 1
+    symbol: str, page: int = 1
 ) -> list[dict]:
     """
     Send GET request to Codal API for a SINGLE page of results.
 
     Args:
         symbol: Stock symbol (e.g. "فولاد")
-        length: Number of results per page
         page: Page number (1-based)
 
     Returns:
@@ -118,13 +116,13 @@ def fetch_announcements_from_codal(
     params = {
         **DEFAULT_PARAMS,
         "Symbol": symbol,
-        "Length": length,
+        "Length": -1,
         "PageNumber": page,
     }
 
     logger.info(
-        "Fetching Codal API — symbol: %s | page: %d | length: %d",
-        symbol, page, length,
+        "Fetching Codal API — symbol: %s | page: %d",
+        symbol, page,
     )
 
     response = requests.get(
@@ -161,8 +159,11 @@ def fetch_all_announcements_from_codal(symbol: str) -> list[dict]:
     Fetch ALL announcements for a symbol by paginating through
     every page the Codal API returns.
 
+    Uses Length=-1 (known to work with Codal API, returns ~20 per page).
+
     Stops when:
       - A page returns 0 results, OR
+      - A page adds 0 NEW unique results (pagination not supported), OR
       - MAX_PAGES is reached (safety limit)
 
     If a single page request fails, we stop and return what we have so far.
@@ -174,9 +175,7 @@ def fetch_all_announcements_from_codal(symbol: str) -> list[dict]:
 
     for page_num in range(1, MAX_PAGES + 1):
         try:
-            page_data = fetch_announcements_from_codal(
-                symbol, length=PAGE_SIZE, page=page_num
-            )
+            page_data = fetch_announcements_from_codal(symbol, page=page_num)
         except Exception as e:
             logger.error(
                 "Error fetching page %d for %s: %s — returning %d results so far",
@@ -191,7 +190,7 @@ def fetch_all_announcements_from_codal(symbol: str) -> list[dict]:
             )
             break
 
-        # Deduplicate by TracingNo (in case of overlap)
+        # Deduplicate by TracingNo
         new_in_page = 0
         for item in page_data:
             tid = item["tracking_id"]
@@ -205,11 +204,11 @@ def fetch_all_announcements_from_codal(symbol: str) -> list[dict]:
             symbol, page_num, len(all_results), new_in_page,
         )
 
-        # If we got fewer results than PAGE_SIZE, this is the last page
-        if len(page_data) < PAGE_SIZE:
+        # If page 2+ returns no new items, the API doesn't support pagination — stop
+        if page_num > 1 and new_in_page == 0:
             logger.info(
-                "Last page reached for %s (got %d < %d).",
-                symbol, len(page_data), PAGE_SIZE,
+                "Page %d returned only duplicates for %s — pagination not working, stopping.",
+                page_num, symbol,
             )
             break
 
@@ -217,8 +216,8 @@ def fetch_all_announcements_from_codal(symbol: str) -> list[dict]:
         time.sleep(0.3)
 
     logger.info(
-        "✅ Finished fetching %s: %d total announcements across pages",
-        symbol, len(all_results),
+        "Finished fetching %s: %d total announcements across %d pages",
+        symbol, len(all_results), page_num,
     )
     return all_results
 
