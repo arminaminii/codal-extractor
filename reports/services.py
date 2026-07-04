@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from datetime import datetime, timezone
 
 import requests
@@ -66,6 +67,8 @@ def _normalize_persian(text: str) -> str:
 # Codal returns max ~20 per page. We paginate until a page returns fewer items.
 CODAL_PAGE_SIZE = 20
 CODAL_MAX_PAGES = 50  # safety limit (50 * 20 = 1000 max)
+PAGE_DELAY = 1.0  # seconds between pages to avoid 429 rate-limit
+MAX_RETRIES = 3  # retries on 429 with exponential backoff
 
 
 def _parse_codal_letters(symbol: str, letters_data: list) -> list[dict]:
@@ -128,23 +131,39 @@ def fetch_announcements_from_codal(symbol: str) -> list[dict]:
     seen_tracing_nos = set()
 
     for page in range(1, CODAL_MAX_PAGES + 1):
+        # Delay between pages to avoid Codal rate-limiting (429)
+        if page > 1:
+            time.sleep(PAGE_DELAY)
+
         params = {
             **DEFAULT_PARAMS,
             "Symbol": symbol,
             "PageNumber": page,
         }
 
-        logger.info(
-            "Fetching Codal API for symbol: %s (page %d)",
-            symbol, page,
-        )
+        # Retry loop for 429 (Too Many Requests)
+        response = None
+        for attempt in range(1, MAX_RETRIES + 1):
+            logger.info(
+                "Fetching Codal API for symbol: %s (page %d, attempt %d)",
+                symbol, page, attempt,
+            )
+            response = requests.get(
+                CODAL_SEARCH_URL,
+                params=params,
+                headers=HEADERS,
+                timeout=timeout,
+            )
+            if response.status_code == 429:
+                wait = 3 * attempt  # 3s, 6s, 9s
+                logger.warning(
+                    "429 rate-limit for %s page %d. Waiting %ds before retry %d/%d",
+                    symbol, page, wait, attempt, MAX_RETRIES,
+                )
+                time.sleep(wait)
+                continue
+            break
 
-        response = requests.get(
-            CODAL_SEARCH_URL,
-            params=params,
-            headers=HEADERS,
-            timeout=timeout,
-        )
         response.raise_for_status()
 
         data = response.json()
