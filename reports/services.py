@@ -64,10 +64,9 @@ def _normalize_persian(text: str) -> str:
     return text
 
 
-# Codal returns max ~20 per page. We paginate until a page returns fewer items.
+# Codal returns max ~20 per page.
 CODAL_PAGE_SIZE = 20
-CODAL_MAX_PAGES = 50  # safety limit (50 * 20 = 1000 max)
-PAGE_DELAY = 1.0  # seconds between pages to avoid 429 rate-limit
+CODAL_MAX_PAGES = 5  # 5 pages × 20 = 100 most recent announcements
 MAX_RETRIES = 3  # retries on 429 with exponential backoff
 
 
@@ -131,10 +130,6 @@ def fetch_announcements_from_codal(symbol: str) -> list[dict]:
     seen_tracing_nos = set()
 
     for page in range(1, CODAL_MAX_PAGES + 1):
-        # Delay between pages to avoid Codal rate-limiting (429)
-        if page > 1:
-            time.sleep(PAGE_DELAY)
-
         params = {
             **DEFAULT_PARAMS,
             "Symbol": symbol,
