@@ -58,7 +58,7 @@ class Command(BaseCommand):
 
         # ─── Step 3: Raw API Call (to see exactly what Codal returns) ───
         self.stdout.write(self.style.HTTP_INFO("── قدم ۳: فراخوانی خام API کدال ──"))
-        self.stdout.write(f"  در حال درخواست برای «{normalized}" ...")
+        self.stdout.write(f"  در حال درخواست برای «{normalized}» ...")
         import requests
         from reports.services import CODAL_SEARCH_URL, DEFAULT_PARAMS, HEADERS
         raw_params = {**DEFAULT_PARAMS, "Symbol": normalized, "PageNumber": 1}
