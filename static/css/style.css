@@ -664,7 +664,7 @@ html { scroll-behavior: smooth; }
 .col-type { width: 130px; text-align: center; }
 .col-code { width: 100px; text-align: center; }
 .col-date { width: 130px; text-align: center; white-space: nowrap; }
-.col-action { width: 90px; text-align: center; }
+.col-action { width: 160px; text-align: center; }
 
 .row-num { color: var(--text-muted); font-size: 0.78rem; font-weight: 600; }
 
@@ -803,4 +803,243 @@ html { scroll-behavior: smooth; }
 @media (max-width: 480px) {
     .container { padding: 1rem 0.75rem; }
     .search-card { padding: 1.25rem; }
+}
+
+/* ═══════════════════════════════════════════════════
+   Financial Detail Page Styles
+   ═══════════════════════════════════════════════════ */
+
+.fin-report-header {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.fin-report-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.fin-report-title-row h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.fin-report-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.fin-meta-sep { opacity: 0.3; }
+
+.fin-audit-badge, .fin-consolidated-badge {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.fin-audit-badge {
+    background: rgba(52, 211, 153, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(52, 211, 153, 0.2);
+}
+
+.fin-consolidated-badge {
+    background: rgba(167, 139, 250, 0.15);
+    color: var(--neon-purple);
+    border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+/* Tabs */
+.fin-tabs {
+    display: flex;
+    gap: 0.35rem;
+    margin-bottom: 1.25rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    scrollbar-width: none;
+}
+
+.fin-tabs::-webkit-scrollbar { display: none; }
+
+.fin-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all var(--transition);
+}
+
+.fin-tab:hover { border-color: rgba(255,255,255,0.15); color: var(--text-primary); }
+
+.fin-tab.active {
+    background: rgba(34, 211, 238, 0.12);
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-weight: 600;
+}
+
+.fin-tab svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Tab Panels */
+.fin-panel { display: none; }
+.fin-panel.active { display: block; }
+
+/* Financial Table Wrap */
+.fin-table-wrap {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.fin-table-caption {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: rgba(34, 211, 238, 0.04);
+    border-bottom: 1px solid var(--border-glass);
+}
+
+.fin-table-head {
+    display: flex;
+    padding: 0.7rem 1.25rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: rgba(34, 211, 238, 0.06);
+    border-bottom: 1px solid var(--border-glass);
+}
+
+.fin-col-formula { color: var(--text-muted); font-size: 0.72rem !important; font-weight: 400 !important; }
+.fin-col-value { text-align: center; font-family: 'Vazirmatn', monospace; direction: ltr; }
+
+/* Ratio Rows */
+.fin-ratio-row {
+    display: flex;
+    padding: 0.65rem 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    align-items: center;
+    transition: background var(--transition);
+}
+
+.fin-ratio-row:last-child { border-bottom: none; }
+.fin-ratio-row:hover { background: rgba(34,211,238,0.04); }
+
+.fin-ratio-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.fin-ratio-formula {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.fin-ratio-value {
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'Vazirmatn', monospace;
+    direction: ltr;
+    color: var(--neon-cyan);
+}
+
+.fin-ratio-value.fin-old { color: var(--text-muted); font-weight: 400; }
+
+/* Data Rows */
+.fin-data-row {
+    display: flex;
+    padding: 0.55rem 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    align-items: center;
+    transition: background var(--transition);
+}
+
+.fin-data-row:last-child { border-bottom: none; }
+.fin-data-row:hover { background: rgba(34,211,238,0.03); }
+
+.fin-data-row.fin-row-header {
+    background: rgba(34,211,238,0.06);
+    font-weight: 700;
+}
+
+.fin-data-row.fin-row-sub {
+    background: rgba(34,211,238,0.03);
+    font-weight: 600;
+}
+
+.fin-data-concept {
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    direction: rtl;
+}
+
+.fin-row-header .fin-data-concept { font-size: 0.82rem; color: var(--neon-cyan); }
+
+.fin-data-value {
+    text-align: center;
+    font-size: 0.82rem;
+    font-family: 'Vazirmatn', monospace;
+    direction: ltr;
+    color: var(--text-primary);
+}
+
+.fin-data-value.fin-old { color: var(--text-muted); }
+
+/* Analyze Link in reports table */
+.analyze-link {
+    background: rgba(34, 211, 238, 0.15) !important;
+    border: 1px solid rgba(34, 211, 238, 0.25) !important;
+    margin-bottom: 0.3rem;
+}
+
+.analyze-link:hover {
+    background: rgba(34, 211, 238, 0.3) !important;
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.2) !important;
+}
+
+/* Error Box */
+.fin-error-box {
+    text-align: center;
+    max-width: 500px;
+    padding: 2rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .fin-table-head, .fin-ratio-row, .fin-data-row {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.75rem;
+    }
+    .fin-col-formula { display: none; }
+    .fin-ratio-formula { display: none; }
+    .fin-report-title-row h2 { font-size: 0.95rem; }
+    .fin-report-meta { font-size: 0.75rem; }
 }

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% load codal_tags %}
+
+{% block title %}تحلیل مالی - {{ announcement.title }} | کدال اکسپرت{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="/">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            صفحه اصلی
+        </a>
+        <span class="sep">/</span>
+        <a href="{% url 'reports' symbol=announcement.symbol %}">{{ announcement.symbol }}</a>
+        <span class="sep">/</span>
+        <span class="current">تحلیل مالی</span>
+    </nav>
+
+    <!-- Report Header -->
+    <div class="fin-report-header">
+        <div class="fin-report-title-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="24" height="24" style="color:var(--neon-cyan);flex-shrink:0;">
+                <path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-9"/>
+            </svg>
+            <h2>{{ report.title }}</h2>
+        </div>
+        <div class="fin-report-meta">
+            <span>{{ announcement.symbol }}</span>
+            <span class="fin-meta-sep">|</span>
+            <span>دوره: {{ report.period }}</span>
+            <span class="fin-meta-sep">|</span>
+            <span>پایان سال مالی: {{ report.year_end }}</span>
+            {% if report.is_audited %}
+            <span class="fin-audit-badge">حسابرسی شده</span>
+            {% endif %}
+            {% if report.is_consolidated %}
+            <span class="fin-consolidated-badge">تلفیقی</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if not has_data %}
+    <div class="alert-box" style="border-color:#f59e0b;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <p>داده‌های ساختاریافته‌ای در این گزارش یافت نشد. ممکن است فرمت گزارش قدیمی باشد یا فایل HTML نداشته باشد.</p>
+    </div>
+    {% else %}
+
+    <!-- Tabs Navigation -->
+    <div class="fin-tabs">
+        {% if has_ratios %}
+        <button class="fin-tab active" onclick="switchFinTab('ratios', this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-9"/></svg>
+            شاخص‌های کلیدی
+        </button>
+        {% endif %}
+        {% for sheet in income_sheets %}
+        <button class="fin-tab {% if not has_ratios and forloop.first %}active{% endif %}" onclick="switchFinTab('sheet-{{ sheet.code }}', this)">سود و زیان</button>
+        {% endfor %}
+        {% for sheet in balance_sheets %}
+        <button class="fin-tab {% if not has_ratios and not income_sheets and forloop.first %}active{% endif %}" onclick="switchFinTab('sheet-{{ sheet.code }}', this)">ترازنامه</button>
+        {% endfor %}
+        {% for sheet in cashflow_sheets %}
+        <button class="fin-tab {% if not has_ratios and not income_sheets and not balance_sheets and forloop.first %}active{% endif %}" onclick="switchFinTab('sheet-{{ sheet.code }}', this)">جریان نقد</button>
+        {% endfor %}
+        {% for sheet in note_sheets %}
+        <button class="fin-tab" onclick="switchFinTab('sheet-{{ sheet.code }}', this)">{{ sheet.title|truncatechars:20 }}</button>
+        {% endfor %}
+    </div>
+
+    <!-- Tab: Ratios -->
+    {% if has_ratios %}
+    <div id="fin-panel-ratios" class="fin-panel active">
+        <div class="fin-table-wrap">
+            <div class="fin-table-head">
+                <div style="flex:2">شاخص</div>
+                <div style="flex:2" class="fin-col-formula">فرمول</div>
+                <div style="flex:1" class="fin-col-value">دوره جاری</div>
+                <div style="flex:1" class="fin-col-value">سال قبل</div>
+            </div>
+            {% for key, ratio in ratios.items %}
+            <div class="fin-ratio-row">
+                <div style="flex:2" class="fin-ratio-label">{{ ratio.label }}</div>
+                <div style="flex:2" class="fin-ratio-formula">{{ ratio.formula }}</div>
+                <div style="flex:1" class="fin-ratio-value">{{ ratio.period|format_ratio:ratio.type }}</div>
+                <div style="flex:1" class="fin-ratio-value fin-old">{{ ratio.year|format_ratio:ratio.type }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tab: Income, Balance, Cashflow, Notes sheets -->
+    {% for sheet in income_sheets %}
+    <div id="fin-panel-sheet-{{ sheet.code }}" class="fin-panel {% if not has_ratios and forloop.first %}active{% endif %}">
+        {% for table in sheet.tables %}
+        <div class="fin-table-wrap">
+            {% if table.title %}<div class="fin-table-caption">{{ table.title }}</div>{% endif %}
+            <div class="fin-table-head">
+                <div style="flex:2">شرح</div>
+                <div style="flex:1" class="fin-col-value">دوره جاری</div>
+                <div style="flex:1" class="fin-col-value">سال قبل</div>
+            </div>
+            {% for row in table.rows %}
+            <div class="fin-data-row {% if row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
+                <div style="flex:2" class="fin-data-concept">{{ row.concept|default:"—" }}</div>
+                <div style="flex:1" class="fin-data-value">{{ row.period_value|format_num }}</div>
+                <div style="flex:1" class="fin-data-value fin-old">{{ row.year_value|format_num }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    {% for sheet in balance_sheets %}
+    <div id="fin-panel-sheet-{{ sheet.code }}" class="fin-panel {% if not has_ratios and not income_sheets and forloop.first %}active{% endif %}">
+        {% for table in sheet.tables %}
+        <div class="fin-table-wrap">
+            {% if table.title %}<div class="fin-table-caption">{{ table.title }}</div>{% endif %}
+            <div class="fin-table-head">
+                <div style="flex:2">شرح</div>
+                <div style="flex:1" class="fin-col-value">دوره جاری</div>
+                <div style="flex:1" class="fin-col-value">سال قبل</div>
+            </div>
+            {% for row in table.rows %}
+            <div class="fin-data-row {% if row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
+                <div style="flex:2" class="fin-data-concept">{{ row.concept|default:"—" }}</div>
+                <div style="flex:1" class="fin-data-value">{{ row.period_value|format_num }}</div>
+                <div style="flex:1" class="fin-data-value fin-old">{{ row.year_value|format_num }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    {% for sheet in cashflow_sheets %}
+    <div id="fin-panel-sheet-{{ sheet.code }}" class="fin-panel {% if not has_ratios and not income_sheets and not balance_sheets and forloop.first %}active{% endif %}">
+        {% for table in sheet.tables %}
+        <div class="fin-table-wrap">
+            {% if table.title %}<div class="fin-table-caption">{{ table.title }}</div>{% endif %}
+            <div class="fin-table-head">
+                <div style="flex:2">شرح</div>
+                <div style="flex:1" class="fin-col-value">دوره جاری</div>
+                <div style="flex:1" class="fin-col-value">سال قبل</div>
+            </div>
+            {% for row in table.rows %}
+            <div class="fin-data-row {% if row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
+                <div style="flex:2" class="fin-data-concept">{{ row.concept|default:"—" }}</div>
+                <div style="flex:1" class="fin-data-value">{{ row.period_value|format_num }}</div>
+                <div style="flex:1" class="fin-data-value fin-old">{{ row.year_value|format_num }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    {% for sheet in note_sheets %}
+    <div id="fin-panel-sheet-{{ sheet.code }}" class="fin-panel">
+        {% for table in sheet.tables %}
+        <div class="fin-table-wrap">
+            {% if table.title %}<div class="fin-table-caption">{{ table.title }}</div>{% endif %}
+            <div class="fin-table-head">
+                <div style="flex:2">شرح</div>
+                <div style="flex:1" class="fin-col-value">دوره جاری</div>
+                <div style="flex:1" class="fin-col-value">سال قبل</div>
+            </div>
+            {% for row in table.rows %}
+            <div class="fin-data-row {% if row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
+                <div style="flex:2" class="fin-data-concept">{{ row.concept|default:"—" }}</div>
+                <div style="flex:1" class="fin-data-value">{{ row.period_value|format_num }}</div>
+                <div style="flex:1" class="fin-data-value fin-old">{{ row.year_value|format_num }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    {% endif %}
+
+</div>
+
+<script>
+function switchFinTab(panelId, btn) {
+    document.querySelectorAll('.fin-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.fin-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('fin-panel-' + panelId).classList.add('active');
+    btn.classList.add('active');
+}
+</script>
+{% endblock %}

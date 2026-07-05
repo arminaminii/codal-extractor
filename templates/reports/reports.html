@@ -125,7 +125,13 @@
                         {% endif %}
                     </td>
                     <td class="col-action">
-                        <a href="{{ ann.direct_link }}" target="_blank" rel="noopener noreferrer" class="view-link">
+                        {% if ann.category == 'financial' %}
+                        <a href="{% url 'financial_detail' tracking_id=ann.tracking_id %}" class="view-link analyze-link" title="تحلیل مالی">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-9"/></svg>
+                            تحلیل مالی
+                        </a>
+                        {% endif %}
+                        <a href="{{ ann.direct_link }}" target="_blank" rel="noopener noreferrer" class="view-link" title="مشاهده در کدال">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                             کدال
                         </a>

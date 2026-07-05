@@ -2,11 +2,12 @@ import logging
 
 import requests
 from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from .models import Announcement, Company
 from .services import (
     _normalize_persian,
+    get_financial_report,
     categorize_letter_code,
     get_all_sectors,
     get_companies_by_sector,
@@ -180,3 +181,61 @@ def company_list_api(request):
 
     companies = get_companies_by_sector(sector)
     return JsonResponse(companies, safe=False)
+
+
+def financial_detail(request, tracking_id: int):
+    """
+    صفحه جزئیات مالی: استخراج و نمایش داده‌های ساختاریافته از صفحه گزارش کدال.
+    وقتی کاربر روی دکمه «تحلیل مالی» کلیک می‌کند این view صدا زده می‌شود.
+    """
+    announcement = get_object_or_404(Announcement, tracking_id=tracking_id)
+
+    try:
+        result = get_financial_report(announcement.direct_link)
+    except ConnectionError as e:
+        logger.error("Connection error for report %s: %s", tracking_id, e)
+        return render(request, "reports/error.html", {
+            "error_title": announcement.title,
+            "error_msg": str(e),
+            "symbol": announcement.symbol,
+        })
+    except ValueError as e:
+        logger.error("Parse error for report %s: %s", tracking_id, e)
+        return render(request, "reports/error.html", {
+            "error_title": announcement.title,
+            "error_msg": str(e),
+            "symbol": announcement.symbol,
+        })
+    except Exception as e:
+        logger.exception("Unexpected error for report %s", tracking_id)
+        return render(request, "reports/error.html", {
+            "error_title": announcement.title,
+            "error_msg": f"خطای ناشناخته: {e}",
+            "symbol": announcement.symbol,
+        })
+
+    parsed = result["report"]
+    ratios = result["ratios"]
+
+    income_sheets = [s for s in parsed["sheets"] if s.get("category") == "income"]
+    balance_sheets = [s for s in parsed["sheets"] if s.get("category") == "balance"]
+    cashflow_sheets = [s for s in parsed["sheets"] if s.get("category") == "cashflow"]
+    note_sheets = [s for s in parsed["sheets"] if s.get("category") == "notes"]
+
+    has_ratios = any(
+        r.get("period") is not None or r.get("year") is not None
+        for r in ratios.values()
+    )
+    has_data = bool(income_sheets or balance_sheets or cashflow_sheets or note_sheets)
+
+    return render(request, "reports/financial_detail.html", {
+        "announcement": announcement,
+        "report": parsed,
+        "ratios": ratios,
+        "has_ratios": has_ratios,
+        "has_data": has_data,
+        "income_sheets": income_sheets,
+        "balance_sheets": balance_sheets,
+        "cashflow_sheets": cashflow_sheets,
+        "note_sheets": note_sheets,
+    })

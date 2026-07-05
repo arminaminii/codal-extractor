@@ -285,3 +285,32 @@ def to_jalali(value):
         return f"{jdate.year}/{jdate.month:02d}/{jdate.day:02d}"
     except (ValueError, OSError, OverflowError):
         return ""
+
+
+@register.filter
+def format_num(value):
+    """فرمت عدد با جداکننده هزارگان فارسی"""
+    if value is None:
+        return "—"
+    try:
+        num = float(value)
+        if num == 0:
+            return "—"
+        return f"{num:,.0f}".replace(",", "٬")
+    except (ValueError, TypeError):
+        return "—"
+
+
+@register.filter
+def format_ratio(value, ratio_type="percent"):
+    """فرمت نسبت یا درصد"""
+    if value is None:
+        return "—"
+    try:
+        num = float(value)
+        if ratio_type == "ratio":
+            return f"{num:.2f}"
+        else:
+            return f"{num * 100:.1f}%"
+    except (ValueError, TypeError):
+        return "—"
