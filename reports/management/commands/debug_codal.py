@@ -56,15 +56,40 @@ class Command(BaseCommand):
             return
         self.stdout.write("")
 
-        # ─── Step 3: Codal API Call ───
-        self.stdout.write(self.style.HTTP_INFO("── قدم ۳: فراخوانی API کدال ──"))
-        self.stdout.write(f"  در حال درخواست برای «{normalized}» ...")
+        # ─── Step 3: Raw API Call (to see exactly what Codal returns) ───
+        self.stdout.write(self.style.HTTP_INFO("── قدم ۳: فراخوانی خام API کدال ──"))
+        self.stdout.write(f"  در حال درخواست برای «{normalized}" ...")
+        import requests
+        from reports.services import CODAL_SEARCH_URL, DEFAULT_PARAMS, HEADERS
+        raw_params = {**DEFAULT_PARAMS, "Symbol": normalized, "PageNumber": 1}
+        try:
+            raw_resp = requests.get(CODAL_SEARCH_URL, params=raw_params, headers=HEADERS, timeout=15)
+            self.stdout.write(f"  Status Code: {raw_resp.status_code}")
+            raw_data = raw_resp.json()
+            raw_keys = list(raw_data.keys())
+            self.stdout.write(f"  Response Keys: {raw_keys}")
+            letters_raw = raw_data.get("Letters", [])
+            self.stdout.write(f"  Letters Count: {len(letters_raw)}")
+            if letters_raw:
+                self.stdout.write(f"  First Letter:")
+                self.stdout.write(f"    Title: {letters_raw[0].get('Title', '')[:80]}")
+                self.stdout.write(f"    Symbol: {letters_raw[0].get('Symbol', '')}")
+                self.stdout.write(f"    Code: {letters_raw[0].get('LetterCode', '')}")
+            else:
+                self.stdout.write(self.style.WARNING("  ⚠️  Letters خالیه! اول ۵۰۰ کاراکتر پاسخ:"))
+                self.stdout.write(json.dumps(raw_data, ensure_ascii=False, indent=2)[:500])
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"  ❌ خطا: {type(e).__name__}: {e}"))
+            return
+        self.stdout.write("")
+
+        # ─── Step 3b: Full Pipeline Fetch ───
+        self.stdout.write(self.style.HTTP_INFO("── قدم ۳‌ب: فراخوانی کامل لوله (fetch_announcements) ──"))
         try:
             results = fetch_announcements_from_codal(normalized)
             self.stdout.write(self.style.SUCCESS(f"  ✅ پاسخ دریافت شد: {len(results)} اطلاعیه"))
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"  ❌ خطا: {type(e).__name__}: {e}"))
-            self.stdout.write(self.style.WARNING("  → مشکل شبکه‌ست یا API کدال پاسخ نمیده"))
             return
 
         if results:
