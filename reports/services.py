@@ -563,37 +563,92 @@ def extract_datasource(report_url: str) -> dict:
     
     timeout = getattr(settings, "CODAL_REQUEST_TIMEOUT", 30)
     
+    resp = None
+
     for attempt in range(MAX_RETRIES):
         try:
             logger.info("Fetching report page: %s (attempt %d)", full_url, attempt + 1)
             resp = requests.get(full_url, headers=HEADERS, timeout=timeout)
-            
+
             if resp.status_code == 429:
                 wait = 10 * (2 ** attempt)
                 logger.warning("429 on report fetch. Waiting %ds", wait)
                 time.sleep(wait)
                 continue
-            
+
             resp.raise_for_status()
+            break  # success
         except requests.ConnectionError as e:
             raise ConnectionError(f"خطا در اتصال به کدال: {e}")
         except requests.Timeout:
             raise ConnectionError("درخواست به سرور کدال طول کشید و قطع شد.")
         except requests.RequestException as e:
             raise ConnectionError(f"خطا در دریافت گزارش: {e}")
-    
+    else:
+        # تمام تلاش‌ها 429 شدند
+        raise ConnectionError(
+            "درخواست‌های شما بیش از حد مجاز است (429). "
+            "لطفاً چند دقیقه صبر کنید و دوباره تلاش کنید."
+        )
+
     html = resp.text
-    
-    # استخراج var datasource = {...};
-    match = re.search(r'var\s+datasource\s*=\s*(\{.*?\});', html, re.DOTALL)
-    if not match:
+
+    # استخراج var datasource = {...}
+    # از شمارنده آکولاد متعادل استفاده می‌کنیم چون datasource JSON بزرگی است
+    # و regex ساده با .*? در اولین }; اشتباه متوقف می‌شود.
+    ds_start = html.find("var datasource")
+    if ds_start == -1:
         raise ValueError(
             "متغیر datasource در صفحه یافت نشد. "
             "ممکن است این گزارش فرمت قدیمی داشته باشد یا فایل HTML نداشته باشد."
         )
-    
+
+    eq_pos = html.index('=', ds_start)
+    json_start = html.index('{', eq_pos)
+
+    # شمارنده آکولاد متعادل + رعایت string‌ها
+    depth = 0
+    json_end = -1
+    i = json_start
+    in_string = False
+    escape_next = False
+
+    while i < len(html):
+        ch = html[i]
+
+        if escape_next:
+            escape_next = False
+            i += 1
+            continue
+
+        if ch == '\\' and in_string:
+            escape_next = True
+            i += 1
+            continue
+
+        if ch == '"' and not escape_next:
+            in_string = not in_string
+            i += 1
+            continue
+
+        if not in_string:
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    json_end = i
+                    break
+
+        i += 1
+
+    if json_end == -1:
+        raise ValueError("نتوانست انتهای JSON datasource را پیدا کند (آکولادها بسته نشدند).")
+
+    json_str = html[json_start:json_end + 1]
+
     try:
-        datasource = json.loads(match.group(1))
+        datasource = json.loads(json_str)
     except json.JSONDecodeError as e:
         raise ValueError(f"خطا در پارس JSON datasource: {e}")
     
