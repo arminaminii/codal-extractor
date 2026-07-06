@@ -1161,18 +1161,14 @@ def parse_financial_report(datasource: dict) -> dict:
                     if concept_text:
                         rows_map[row_key]["concept"] = _normalize_persian(str(concept_text))
                 else:
-                    # سلول داده‌ای → مقادیر عددی را استخراج کن
+                    # سلول داده‌ای → مقادیر عددی را از فیلدهای استاندارد استخراج کن
+                    # ⚠️ فقط periodEndToDate/yearEndToDate — fallback به value حذف شد
+                    # چون ممکنه عدد اشتباهی از فیلد value برداشته بشه و داده ساختگی بشه
                     val = _parse_cell_value(cell.get("periodEndToDate"))
-                    if val is None:
-                        # Fallback: شاید عدد در فیلد value باشد
-                        val = _parse_cell_value(cell.get("value"))
                     if val is not None:
                         rows_map[row_key]["period_value"] = val
                     
                     val_year = _parse_cell_value(cell.get("yearEndToDate"))
-                    if val_year is None:
-                        # Fallback: شاید عدد در فیلد value سال قبل باشد
-                        val_year = _parse_cell_value(cell.get("value2"))
                     if val_year is not None:
                         rows_map[row_key]["year_value"] = val_year
             
