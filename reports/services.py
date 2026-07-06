@@ -544,22 +544,26 @@ SHEET_CATEGORY_MAP = {
 
 # نام‌های مختلف یک مفهوم مالی در گزارش‌های مختلف شرکت‌ها
 # شامل فرم‌های واقعی کدال: ها/ی، فاصله پرانتز، نیم‌فاصله
-# ⚠️ alias‌های خیلی کوتاه (مثل "فروش" یا "درآمد") حذف شدند چون
-#    ممکنه مفاهیم اشتباه مثل "هزینه فروش" رو match کنند.
+#
+# ⚠️ قوانین اضافه کردن alias:
+#    1. حداقل ۵ کاراکتر (جلوگیری از false positive مثل "فروش" در "کارمزد فروش")
+#    2. باید SPECIFIC باشد — اگر alias داخل مفهوم دیگری هم match شود، خطرناک است
+#    3. بهتر است کل عبارت باشد نه بخشی از آن
 CONCEPT_ALIASES = {
     "revenue": [
         "درآمدهای عملیاتی", "درآمدهاي عملياتي",
         "درآمد عملیاتی",
         "فروش خالص", "درآمد فروش",
         "بهای فروش کالا و خدمات",
-        "فروش",
+        # ⚠️ "فروش" حذف شد — ۴ کاراکتر و داخل "کارمزد فروش" و "هزینه فروش" match می‌شود
     ],
     "cogs": [
         "بهای تمام شده درآمدهای عملیاتی", "بهای تمام شده درآمدهاي عملياتي",
-        "بهای تمام شده", "بهای تمام\u200cشده",
         "بهای تمام شده کالای فروش رفته", "بهای تمام\u200cشده کالای فروش رفته",
-        "هزینه های عملیاتی", "هزینه‌های عملیاتی",
+        "بهای تمام شده", "بهای تمام\u200cشده",
         "Cost of Goods Sold", "Cost of Revenue",
+        # ⚠️ "هزینه های عملیاتی" و "هزینه‌های عملیاتی" حذف شدند —
+        #   خیلی کلی هستند و ممکن است هزینه‌های غیرمرتبط را هم match کنند
     ],
     "gross_profit": [
         "سود(زیان) ناخالص", "سود (زیان) ناخالص", "سود ناخالص",
@@ -570,9 +574,9 @@ CONCEPT_ALIASES = {
     "operating_profit": [
         "سود(زیان) عملیاتى", "سود(زیان) عملیاتی", "سود (زیان) عملیاتی",
         "سود(زیان) عملیات", "سود (زیان) عملیات",
-        "سود (زیان) ناخالص عملیاتی",
         "سود عملیاتی",
         "Operating Profit", "Operating Income",
+        # ⚠️ "سود (زیان) ناخالص عملیاتی" حذف شد — نامفهوم است
     ],
     "net_income": [
         "سود(زیان) خالص", "سود (زیان) خالص", "سود خالص",
@@ -583,8 +587,9 @@ CONCEPT_ALIASES = {
     ],
     "total_current_assets": [
         "جمع دارایی‌های جاری", "جمع دارایی جاری", "جمع داراییهای جاری",
-        "دارایی جاری", "دارایی‌های جاری",
         "Current Assets", "Total Current Assets",
+        # ⚠️ "دارایی جاری" و "دارایی‌های جاری" حذف شدند —
+        #   بدون "جمع" خیلی کلی هستند و ممکن است ردیف‌های فرعی را match کنند
     ],
     "total_noncurrent_assets": [
         "جمع دارایی‌های غیرجاری", "جمع دارایی غیرجاری", "جمع داراییهای غیرجاری",
@@ -597,8 +602,8 @@ CONCEPT_ALIASES = {
     ],
     "total_current_liabilities": [
         "جمع بدهی‌های جاری", "جمع بدهی جاری", "جمع بدهیهای جاری",
-        "بدهی جاری",
         "Current Liabilities", "Total Current Liabilities",
+        # ⚠️ "بدهی جاری" حذف شد — بدون "جمع" خیلی کلی است
     ],
     "total_noncurrent_liabilities": [
         "جمع بدهی‌های غیرجاری", "جمع بدهی غیرجاری", "جمع بدهیهای غیرجاری",
@@ -839,13 +844,13 @@ def _merge_datasources(datasources: list[dict]) -> dict:
         for sheet in ds.get("sheets", []):
             sheet_code = sheet.get("code")
             # جلوگیری از تکرار (اگر دو datasource همان شیت را داشته باشند)
-            sheet_key = (sheet_code, sheet.get("title_Fa", ""))
+            sheet_key = (sheet_code, sheet.get("title_Fa") or "")
             if sheet_key not in seen_sheet_codes:
                 seen_sheet_codes.add(sheet_key)
                 all_sheets.append(sheet)
                 logger.info(
                     "  Merged sheet code=%s: %s",
-                    sheet_code, sheet.get("title_Fa", "")[:40],
+                    sheet_code, (sheet.get("title_Fa") or "")[:40],
                 )
 
     merged["sheets"] = all_sheets
@@ -981,7 +986,7 @@ def extract_datasource(report_url: str) -> dict:
 def categorize_sheet(sheet: dict) -> str:
     """تشخیص نوع شیت از روی کد یا عنوان"""
     code = sheet.get("code")
-    title = _normalize_persian(sheet.get("title_Fa", ""))
+    title = _normalize_persian(sheet.get("title_Fa") or "")
     
     # اول بر اساس کد
     if code is not None and code in SHEET_CATEGORY_MAP:
@@ -1076,7 +1081,7 @@ def parse_financial_report(datasource: dict) -> dict:
         Each row has: concept, period_value, year_value, row_type, indent
     """
     result = {
-        "title": datasource.get("title_Fa", ""),
+        "title": datasource.get("title_Fa") or "",
         "tracing_no": datasource.get("tracing_no", ""),
         "period": datasource.get("periodEndToDate", ""),
         "year_end": datasource.get("yearEndToDate", ""),
@@ -1089,14 +1094,14 @@ def parse_financial_report(datasource: dict) -> dict:
         category = categorize_sheet(sheet)
         sheet_data = {
             "code": sheet.get("code"),
-            "title": sheet.get("title_Fa", ""),
+            "title": sheet.get("title_Fa") or "",
             "category": category,
             "tables": [],
         }
         
         for table in sheet.get("tables", []):
             table_data = {
-                "title": table.get("title_Fa", ""),
+                "title": table.get("title_Fa") or "",
                 "rows": [],
             }
             
@@ -1199,7 +1204,7 @@ def parse_financial_report(datasource: dict) -> dict:
             logger.info(
                 "Table '%s': %d cells → %d rows (%d with numeric data), "
                 "address=%s, columnCode=%s",
-                table.get("title_Fa", "")[:40],
+                (table.get("title_Fa") or "")[:40],
                 len(cells),
                 len(rows_map),
                 rows_with_data,
@@ -1215,8 +1220,16 @@ def parse_financial_report(datasource: dict) -> dict:
 
 
 def _normalize_for_match(text: str) -> str:
-    """نرمالایز کردن متن برای مقایسه: حذف نیم‌فاصله، فاصله اطراف پرانتز، فاصله‌های اضافی."""
-    t = text.replace("\u200c", "")  # نیم‌فاصله
+    """
+    نرمالایز کردن متن برای مقایسه:
+    1. تبدیل عربی → فارسی (ی، ک، ة)
+    2. حذف نیم‌فاصله
+    3. فاصله اطراف پرانتز
+    4. فاصله‌های اضافی
+    """
+    t = text or ""
+    t = _normalize_persian(t)       # عربی → فارسی
+    t = t.replace("\u200c", "")      # نیم‌فاصله
     t = re.sub(r"\s*\(\s*", "(", t)  # فاصله قبل (
     t = re.sub(r"\s*\)\s*", ")", t)  # فاصله بعد )
     t = re.sub(r"\s+", " ", t).strip()
@@ -1226,38 +1239,82 @@ def _normalize_for_match(text: str) -> str:
 def _find_value_in_sheet(sheet: dict, concept_key: str, field: str = "period_value") -> float | None:
     """
     پیدا کردن مقدار یک مفهوم مالی در یک شیت.
-    از تطبیق نرمالایز شده با اولویت طولانی‌ترین match استفاده می‌کند.
+    
+    استراتژی تطبیق (سخت‌گیرانه برای جلوگیری از داده ساختگی):
+      1. فقط جهت forward: alias باید SUBSTRING از concept باشد
+         (نه برعکس — قبلاً concept in alias هم چک می‌شد که باعث
+         match اشتباه "فروش" با "کارمزد فروش" می‌شد)
+      2. حداقل ۵ کاراکتر برای alias
+      3. حداقل ۵۰٪ از طول concept باید match شود
+      4. اولویت با طولانی‌ترین match
+    
+    Returns:
+        float اگر پیدا شد، None در غیر این صورت
     """
     if not sheet:
         return None
     aliases = CONCEPT_ALIASES.get(concept_key, [concept_key])
 
-    # نرمالایز کردن alias‌های این مفهوم
+    # نرمالایز و فیلتر alias‌ها (حداقل ۵ کاراکتر)
     normalized_aliases = []
     for alias in aliases:
         na = _normalize_for_match(alias)
-        if na:
+        if na and len(na) >= 5:
             normalized_aliases.append(na)
+
+    if not normalized_aliases:
+        return None
 
     best_val = None
     best_len = 0
+    best_match_alias = ""
+    best_match_concept = ""
 
     for table in sheet.get("tables", []):
         for row in table.get("rows", []):
             concept = row.get("concept", "")
             concept_norm = _normalize_for_match(concept)
+            if not concept_norm:
+                continue
+
             for alias_norm in normalized_aliases:
-                # تطبیق دوجانبه: alias داخل concept یا برعکس
-                if alias_norm in concept_norm or concept_norm in alias_norm:
-                    match_len = min(len(alias_norm), len(concept_norm))
-                    if match_len > best_len:
-                        val = row.get(field)
-                        if val is not None:
-                            try:
-                                best_val = float(val)
-                                best_len = match_len
-                            except (ValueError, TypeError):
-                                pass
+                # فقط جهت forward: alias باید داخل concept باشد
+                # مثال صحیح: "سود ناخالص" در "سود(زیان) ناخالص"
+                # مثال اشتباه که جلوگیری می‌شود: "فروش" در "کارمزد فروش"
+                if alias_norm not in concept_norm:
+                    continue
+
+                match_len = len(alias_norm)
+
+                # حداقل ۵۰٪ از طول concept باید match شود
+                # این جلوی "جمع بدهیهای جاری" (۱۳ کاراکتر) داخل یک concept
+                # ۳۰ کاراکتری مثل "جمع بدهیهای جاری و غیرجاری شرکت فرعی" را می‌گیرد
+                min_match = max(5, len(concept_norm) * 0.5)
+                if match_len < min_match:
+                    continue
+
+                if match_len > best_len:
+                    val = row.get(field)
+                    if val is not None:
+                        try:
+                            best_val = float(val)
+                            best_len = match_len
+                            best_match_alias = alias_norm
+                            best_match_concept = concept_norm
+                        except (ValueError, TypeError):
+                            pass
+
+    if best_val is not None:
+        logger.debug(
+            "Concept '%s' → matched alias '%s' in row '%s' = %s",
+            concept_key, best_match_alias, best_match_concept, best_val,
+        )
+    else:
+        logger.debug(
+            "Concept '%s' → NOT FOUND in sheet (tried %d aliases)",
+            concept_key, len(normalized_aliases),
+        )
+
     return best_val
 
 

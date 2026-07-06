@@ -204,7 +204,7 @@ def financial_detail(request, tracking_id: int):
             "error_msg": str(e),
             "symbol": announcement.symbol,
         })
-    except ValueError as e:
+    except (ValueError, TypeError) as e:
         logger.error("Parse error for report %s: %s", tracking_id, e)
         return render(request, "reports/error.html", {
             "error_title": announcement.title,
