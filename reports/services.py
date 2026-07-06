@@ -684,40 +684,30 @@ def _extract_json_by_braces(html: str, var_start: int) -> tuple[str, int]:
     return html[json_start:json_end + 1], json_end
 
 
-def extract_datasource(report_url: str) -> dict:
+def _fetch_html(url: str, timeout: int = 30) -> str:
     """
-    دریافت HTML صفحه گزارش کدال و استخراج var datasource = {...}
-    
-    Args:
-        report_url: لینک مستقیم گزارش (مثل https://codal.ir/ReportList.aspx?...)
+    فچ یک URL از کدال با مدیریت خطا و retry.
     
     Returns:
-        dict: parsed datasource JSON
+        HTML content as string
     
     Raises:
         ConnectionError: خطا در اتصال
-        ValueError: datasource یافت نشد
     """
-    full_url = report_url if report_url.startswith("http") else CODAL_BASE_URL + report_url
-    
-    timeout = getattr(settings, "CODAL_REQUEST_TIMEOUT", 30)
-    
-    resp = None
-
     for attempt in range(MAX_RETRIES):
         try:
-            logger.info("Fetching report page: %s (attempt %d)", full_url, attempt + 1)
-            resp = requests.get(full_url, headers=HEADERS, timeout=timeout,
+            logger.info("Fetching: %s (attempt %d)", url[:120], attempt + 1)
+            resp = requests.get(url, headers=HEADERS, timeout=timeout,
                                 allow_redirects=True)
 
             if resp.status_code == 429:
                 wait = 10 * (2 ** attempt)
-                logger.warning("429 on report fetch. Waiting %ds", wait)
+                logger.warning("429 rate-limit. Waiting %ds", wait)
                 time.sleep(wait)
                 continue
 
             resp.raise_for_status()
-            break  # success
+            return resp.text
         except requests.ConnectionError as e:
             raise ConnectionError(f"خطا در اتصال به کدال: {e}")
         except requests.Timeout:
@@ -725,84 +715,195 @@ def extract_datasource(report_url: str) -> dict:
         except requests.RequestException as e:
             raise ConnectionError(f"خطا در دریافت گزارش: {e}")
     else:
-        # تمام تلاش‌ها 429 شدند
         raise ConnectionError(
             "درخواست‌های شما بیش از حد مجاز است (429). "
             "لطفاً چند دقیقه صبر کنید و دوباره تلاش کنید."
         )
 
-    html = resp.text
 
-    # ─── استخراج datasource ───
-    # نام‌های مختلف متغیر datasource در صفحات کدال
+def _try_extract_datasource_from_html(html: str, url: str) -> dict | None:
+    """
+    تلاش برای استخراج datasource از HTML.
+    
+    Returns:
+        dict اگر datasource پیدا شد، None در غیر این صورت
+    """
     ds_var_names = [
         "var datasource",
         "var datasource =",
         "var Data",
         "var data",
     ]
-    
-    json_str = None
-    
+
     for var_name in ds_var_names:
         ds_start = html.find(var_name)
         if ds_start == -1:
             continue
-        
-        logger.info("Found variable: '%s' at position %d", var_name, ds_start)
+
+        logger.info("Found variable: '%s' at position %d in %s", var_name, ds_start, url[:80])
         try:
             json_str, _ = _extract_json_by_braces(html, ds_start)
-            break
-        except ValueError as e:
-            logger.warning("Failed to extract JSON for '%s': %s", var_name, e)
+            datasource = json.loads(json_str)
+
+            if isinstance(datasource, dict) and datasource.get("sheets"):
+                sheets_count = len(datasource["sheets"])
+                logger.info(
+                    "Datasource extracted: %d sheets from %s",
+                    sheets_count, url[:80],
+                )
+                return datasource
+            else:
+                logger.warning(
+                    "Datasource found but has no sheets (type=%s, keys=%s)",
+                    type(datasource).__name__,
+                    list(datasource.keys())[:5] if isinstance(datasource, dict) else "N/A",
+                )
+        except (ValueError, json.JSONDecodeError) as e:
+            logger.warning("Failed to extract/parse JSON for '%s': %s", var_name, e)
             continue
+
+    return None
+
+
+def _build_sheet_urls(base_url: str) -> list[str]:
+    """
+    ساخت لیست URLهای ممکن با sheetId مختلف.
     
-    if json_str is None:
-        # بررسی‌های تشخیصی
-        is_pdf = 'application/pdf' in html or '.pdf' in html[:2000]
-        is_search_page = 'ReportList.aspx' in full_url and 'search' in full_url and 'TracingNo' not in full_url
-        is_iframe = 'iframe' in html.lower()[:5000]
+    در کدال، صفحه Decision.aspx بدون sheetId معمولاً صفحه نظر حسابرس است.
+    برای دریافت صورت‌های مالی، باید sheetId اضافه شود:
+      - sheetId=0: ترازنامه
+      - sheetId=1: سود و زیان  
+      - sheetId=2: جریان نقد
+    """
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
+    parsed = urlparse(base_url)
+    params = parse_qs(parsed.query, keep_blank_values=True)
+
+    # اگر sheetId از قبل وجود دارد، همان URL را برگردان
+    if "sheetId" in params:
+        return [base_url]
+
+    urls = []
+    # sheetId=1 (سود و زیان) را اول امتحان کن چون معمولاً مهم‌ترین است
+    # و احتمال دارد datasource کامل‌تری داشته باشد
+    for sid in [1, 0, 2]:
+        new_params = {k: v[0] for k, v in params.items()}
+        new_params["sheetId"] = str(sid)
+        new_query = urlencode(new_params)
+        new_url = urlunparse(parsed._replace(query=new_query))
+        urls.append(new_url)
+
+    return urls
+
+
+def extract_datasource(report_url: str) -> dict:
+    """
+    دریافت HTML صفحه گزارش کدال و استخراج var datasource = {...}
+
+    استراتژی:
+      1. اول URL اصلی را امتحان کن
+      2. اگر datasource پیدا نشد و URL از نوع Decision.aspx است،
+         sheetIdهای مختلف را امتحان کن (1, 0, 2)
+      3. datasource اولیه‌ای که sheets داشته باشد را برگردان
+
+    Args:
+        report_url: لینک مستقیم گزارش
+
+    Returns:
+        dict: parsed datasource JSON
+
+    Raises:
+        ConnectionError: خطا در اتصال
+        ValueError: datasource یافت نشد
+    """
+    full_url = report_url if report_url.startswith("http") else CODAL_BASE_URL + report_url
+    timeout = getattr(settings, "CODAL_REQUEST_TIMEOUT", 30)
+
+    # ─── مرحله ۱: امتحان URL اصلی ───
+    logger.info("Phase 1: Trying original URL: %s", full_url[:120])
+    try:
+        html = _fetch_html(full_url, timeout)
+    except ConnectionError:
+        raise  # خطای اتصال را بالا بفرست
+
+    datasource = _try_extract_datasource_from_html(html, full_url)
+    if datasource:
+        return datasource
+
+    logger.info("No datasource on original URL. Checking if we should try sheetId...")
+
+    # ─── مرحله ۲: امتحان با sheetId ───
+    # فقط برای URLهایی که به نظر می‌رسد صفحه گزارش کدال هستند
+    is_decision_page = "Decision.aspx" in full_url
+    is_report_page = "ReportList.aspx" in full_url or is_decision_page
+
+    if not is_report_page:
+        # برای URLهای غیرمعمول (مثل PDF لینک‌ها)
         page_title_m = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
         page_title = page_title_m.group(1).strip() if page_title_m else ""
-        
-        hints = []
-        if is_pdf:
-            hints.append("این گزارش فقط فایل PDF دارد.")
-        if is_search_page:
-            hints.append("این لینک به صفحه جستجو اشاره می‌کند، نه صفحه گزارش.")
-        if is_iframe:
-            hints.append("گزارش در iframe بارگذاری شده و مستقیماً قابل خواندن نیست.")
-        if not html or len(html) < 500:
-            hints.append("صفحه خالی یا بسیار کوتاه دریافت شد.")
-        
-        hint_text = " ".join(hints) if hints else (
-            "ممکن است این گزارش فرمت قدیمی داشته باشد، "
-            "فقط فایل PDF داشته باشد، یا صفحه گزارش ساختاریافته نباشد."
-        )
-        
         raise ValueError(
-            f"متغیر datasource در صفحه یافت نشد. {hint_text}"
+            f"متغیر datasource در صفحه یافت نشد. "
+            f"این لینک یک صفحه گزارش مالی کدال نیست."
             f"\n\nعنوان صفحه: {page_title}"
             f"\nطول HTML: {len(html)} کاراکتر"
             f"\nURL: {full_url[:150]}"
         )
 
-    try:
-        datasource = json.loads(json_str)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"خطا در پارس JSON datasource: {e}")
-    
-    # اعتبارسنجی حداقلی
-    if not isinstance(datasource, dict):
-        raise ValueError("datasource استخراج شده یک dict معتبر نیست.")
-    
-    sheets = datasource.get("sheets", [])
+    # ساخت URLهای مختلف با sheetId
+    sheet_urls = _build_sheet_urls(full_url)
     logger.info(
-        "Datasource extracted successfully. Sheets: %d, Title: %s",
-        len(sheets),
-        datasource.get("title_Fa", "")[:50],
+        "Phase 2: Trying %d sheetId URLs for: %s",
+        len(sheet_urls), full_url[:100],
     )
-    return datasource
+
+    last_error = None
+    for url in sheet_urls:
+        # بررسی اینکه آیا این URL با URL اصلی متفاوت است
+        if url == full_url:
+            continue
+
+        try:
+            html = _fetch_html(url, timeout)
+        except ConnectionError as e:
+            last_error = str(e)
+            logger.warning("Connection error for %s: %s", url[:100], e)
+            continue
+
+        datasource = _try_extract_datasource_from_html(html, url)
+        if datasource:
+            logger.info("✅ Found datasource with sheetId from: %s", url[:100])
+            return datasource
+
+    # ─── هیچ جا datasource پیدا نشد ───
+    page_title_m = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
+    page_title = page_title_m.group(1).strip() if page_title_m else ""
+
+    is_pdf = 'application/pdf' in html or '.pdf' in html[:2000]
+    is_search_only = 'ReportList.aspx' in full_url and 'search' in full_url and 'TracingNo' not in full_url
+
+    hints = []
+    if is_pdf:
+        hints.append("این گزارش فقط فایل PDF دارد.")
+    if is_search_only:
+        hints.append("این لینک به صفحه جستجو اشاره می‌کند، نه صفحه گزارش.")
+    if is_decision_page:
+        hints.append(
+            "صفحه Decision.aspx بود اما حتی با sheetId هم datasource پیدا نشد. "
+            "ممکن است گزارش به‌روزرسانی شده و ساختار آن تغییر کرده باشد."
+        )
+
+    hint_text = " ".join(hints) if hints else (
+        "ممکن است این گزارش فرمت قدیمی داشته باشد "
+        "یا صفحه گزارش ساختاریافته نباشد."
+    )
+
+    raise ValueError(
+        f"متغیر datasource در صفحه یافت نشد (با sheetId هم تست شد). {hint_text}"
+        f"\n\nعنوان صفحه: {page_title}"
+        f"\nطول HTML: {len(html)} کاراکتر"
+        f"\nURL اصلی: {full_url[:150]}"
+    )
 
 
 def categorize_sheet(sheet: dict) -> str:
@@ -985,10 +1086,16 @@ def parse_financial_report(datasource: dict) -> dict:
                 else:
                     # سلول داده‌ای → مقادیر عددی را استخراج کن
                     val = _parse_cell_value(cell.get("periodEndToDate"))
+                    if val is None:
+                        # Fallback: شاید عدد در فیلد value باشد
+                        val = _parse_cell_value(cell.get("value"))
                     if val is not None:
                         rows_map[row_key]["period_value"] = val
                     
                     val_year = _parse_cell_value(cell.get("yearEndToDate"))
+                    if val_year is None:
+                        # Fallback: شاید عدد در فیلد value سال قبل باشد
+                        val_year = _parse_cell_value(cell.get("value2"))
                     if val_year is not None:
                         rows_map[row_key]["year_value"] = val_year
             
@@ -1011,6 +1118,22 @@ def parse_financial_report(datasource: dict) -> dict:
             
             for row_key in sorted(rows_map.keys(), key=_sort_key):
                 table_data["rows"].append(rows_map[row_key])
+            
+            # لاگ آماری برای دیباگ
+            rows_with_data = sum(
+                1 for r in rows_map.values()
+                if r["period_value"] is not None or r["year_value"] is not None
+            )
+            logger.info(
+                "Table '%s': %d cells → %d rows (%d with numeric data), "
+                "address=%s, columnCode=%s",
+                table.get("title_Fa", "")[:40],
+                len(cells),
+                len(rows_map),
+                rows_with_data,
+                "✓" if has_address else "✗",
+                "✓" if has_column_code else "✗",
+            )
             
             sheet_data["tables"].append(table_data)
         
