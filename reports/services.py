@@ -1199,16 +1199,36 @@ def parse_financial_report(datasource: dict) -> dict:
                     if concept_text:
                         rows_map[row_key]["concept"] = _normalize_persian(str(concept_text))
                 else:
-                    # سلول داده‌ای → مقادیر عددی را از فیلدهای استاندارد استخراج کن
-                    # ⚠️ فقط periodEndToDate/yearEndToDate — fallback به value حذف شد
-                    # چون ممکنه عدد اشتباهی از فیلد value برداشته بشه و داده ساختگی بشه
-                    val = _parse_cell_value(cell.get("periodEndToDate"))
-                    if val is not None:
-                        rows_map[row_key]["period_value"] = val
+                    # سلول داده‌ای → استخراج عدد
+                    #
+                    # ⚠️ دو فرمت datasource در کدال وجود دارد:
+                    #
+                    # فرمت قدیمی: periodEndToDate/yearEndToDate = عدد مالی
+                    #   value = متن نمایشی (ممکنه کاما‌دار باشه)
+                    #
+                    # فرمت V6 (جدید): periodEndToDate/yearEndToDate = تاریخ!
+                    #   مثل '1404/06/31' — value = عدد مالی واقعی
+                    #
+                    # تشخیص: اگر periodEndToDate قابل parse به عدد نباشه،
+                    # از value استفاده کن.
                     
-                    val_year = _parse_cell_value(cell.get("yearEndToDate"))
-                    if val_year is not None:
-                        rows_map[row_key]["year_value"] = val_year
+                    cc = cell.get("columnCode")
+                    raw_value = cell.get("value")
+                    
+                    if cc == 3:
+                        # ستون سال قبل (cc=3)
+                        val = _parse_cell_value(cell.get("yearEndToDate"))
+                        if val is None:
+                            val = _parse_cell_value(raw_value)
+                        if val is not None:
+                            rows_map[row_key]["year_value"] = val
+                    else:
+                        # ستون دوره جاری (cc=2 یا سایر)
+                        val = _parse_cell_value(cell.get("periodEndToDate"))
+                        if val is None:
+                            val = _parse_cell_value(raw_value)
+                        if val is not None:
+                            rows_map[row_key]["period_value"] = val
             
             # محاسبه indent بر اساس نوع ردیف
             for row_key in rows_map:
