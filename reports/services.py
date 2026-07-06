@@ -725,93 +725,158 @@ def _try_extract_datasource_from_html(html: str, url: str) -> dict | None:
     """
     تلاش برای استخراج datasource از HTML.
     
+    فقط "var datasource" را جستجو می‌کند (مشابه codalpy).
+    codalpy از رجکس r"var datasource = (.*?);" استفاده می‌کند.
+    ما از شمارنده آکولاد متعادل استفاده می‌کنیم که امن‌تر است.
+    
     Returns:
-        dict اگر datasource پیدا شد، None در غیر این صورت
+        dict اگر datasource پیدا شد و sheets داشت، None در غیر این صورت
     """
-    ds_var_names = [
-        "var datasource",
-        "var datasource =",
-        "var Data",
-        "var data",
-    ]
-
-    for var_name in ds_var_names:
-        ds_start = html.find(var_name)
+    # فقط var datasource (بدون فاصله یا با فاصله) — مشابه codalpy
+    for var_pattern in ["var datasource =", "var datasource="]:
+        ds_start = html.find(var_pattern)
         if ds_start == -1:
             continue
 
-        logger.info("Found variable: '%s' at position %d in %s", var_name, ds_start, url[:80])
+        logger.info(
+            "Found '%s' at pos %d in %s",
+            var_pattern.strip(), ds_start, url[:100],
+        )
         try:
             json_str, _ = _extract_json_by_braces(html, ds_start)
             datasource = json.loads(json_str)
 
-            if isinstance(datasource, dict) and datasource.get("sheets"):
-                sheets_count = len(datasource["sheets"])
-                logger.info(
-                    "Datasource extracted: %d sheets from %s",
-                    sheets_count, url[:80],
-                )
-                return datasource
-            else:
+            if not isinstance(datasource, dict):
+                logger.warning("Datasource is not a dict: %s", type(datasource).__name__)
+                continue
+
+            sheets = datasource.get("sheets")
+            if not sheets or not isinstance(sheets, list):
                 logger.warning(
-                    "Datasource found but has no sheets (type=%s, keys=%s)",
-                    type(datasource).__name__,
-                    list(datasource.keys())[:5] if isinstance(datasource, dict) else "N/A",
+                    "Datasource has no valid sheets. keys=%s",
+                    list(datasource.keys())[:8],
                 )
+                continue
+
+            # بررسی اینکه آیا واقعاً داده مالی دارد
+            total_cells = sum(
+                len(t.get("cells", []))
+                for s in sheets
+                for t in s.get("tables", [])
+            )
+            logger.info(
+                "Datasource OK: %d sheet(s), %d total cells from %s",
+                len(sheets), total_cells, url[:100],
+            )
+            return datasource
+
         except (ValueError, json.JSONDecodeError) as e:
-            logger.warning("Failed to extract/parse JSON for '%s': %s", var_name, e)
+            logger.warning("JSON parse failed for '%s': %s", var_pattern.strip(), e)
             continue
 
     return None
 
 
-def _build_sheet_urls(base_url: str) -> list[str]:
+def _build_sheet_urls(base_url: str, max_sheet_id: int = 5) -> list[tuple[int, str]]:
     """
-    ساخت لیست URLهای ممکن با sheetId مختلف.
+    ساخت لیست (sheetId, URL) برای صفحه Decision.aspx.
     
-    در کدال، صفحه Decision.aspx بدون sheetId معمولاً صفحه نظر حسابرس است.
-    برای دریافت صورت‌های مالی، باید sheetId اضافه شود:
-      - sheetId=0: ترازنامه
-      - sheetId=1: سود و زیان  
-      - sheetId=2: جریان نقد
+    در کدال (مشابه codalpy):
+      - sheetId=0: ترازنامه (balance sheet)
+      - sheetId=1: سود و زیان (income statement)  
+      - sheetId=2: جریان نقد (cash flow)
+      - sheetId=3+: یادداشت‌ها و سایر
+    
+    Returns:
+        لیست (sheetId, url)
     """
     from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
     parsed = urlparse(base_url)
     params = parse_qs(parsed.query, keep_blank_values=True)
 
-    # اگر sheetId از قبل وجود دارد، همان URL را برگردان
-    if "sheetId" in params:
-        return [base_url]
+    # اگر sheetId از قبل وجود دارد، فقط همان را برگردان
+    existing_sid = params.get("sheetId") or params.get("SheetId")
+    if existing_sid:
+        return [(int(existing_sid[0]), base_url)]
 
-    urls = []
-    # sheetId=1 (سود و زیان) را اول امتحان کن چون معمولاً مهم‌ترین است
-    # و احتمال دارد datasource کامل‌تری داشته باشد
-    for sid in [1, 0, 2]:
+    results = []
+    for sid in range(max_sheet_id + 1):
         new_params = {k: v[0] for k, v in params.items()}
         new_params["sheetId"] = str(sid)
         new_query = urlencode(new_params)
         new_url = urlunparse(parsed._replace(query=new_query))
-        urls.append(new_url)
+        results.append((sid, new_url))
 
-    return urls
+    return results
+
+
+def _merge_datasources(datasources: list[dict]) -> dict:
+    """
+    ادغام چند datasource (از sheetIdهای مختلف) به یک datasource واحد.
+    
+    هر datasource یک sheets آرایه دارد. ما همه sheets را جمع می‌کنیم.
+    فیلدهای سطح بالا (title, period, ...) را از اولین datasource می‌گیریم.
+    
+    Args:
+        datasources: لیست datasource‌های استخراج شده
+    
+    Returns:
+        dict: datasource ادغام شده
+    """
+    if not datasources:
+        raise ValueError("No datasources to merge")
+
+    if len(datasources) == 1:
+        return datasources[0]
+
+    # استفاده از اولین datasource به عنوان پایه
+    merged = dict(datasources[0])
+    all_sheets = []
+    seen_sheet_codes = set()
+
+    for ds in datasources:
+        for sheet in ds.get("sheets", []):
+            sheet_code = sheet.get("code")
+            # جلوگیری از تکرار (اگر دو datasource همان شیت را داشته باشند)
+            sheet_key = (sheet_code, sheet.get("title_Fa", ""))
+            if sheet_key not in seen_sheet_codes:
+                seen_sheet_codes.add(sheet_key)
+                all_sheets.append(sheet)
+                logger.info(
+                    "  Merged sheet code=%s: %s",
+                    sheet_code, sheet.get("title_Fa", "")[:40],
+                )
+
+    merged["sheets"] = all_sheets
+    logger.info(
+        "Merged %d datasources → %d total sheets",
+        len(datasources), len(all_sheets),
+    )
+    return merged
 
 
 def extract_datasource(report_url: str) -> dict:
     """
     دریافت HTML صفحه گزارش کدال و استخراج var datasource = {...}
 
-    استراتژی:
-      1. اول URL اصلی را امتحان کن
-      2. اگر datasource پیدا نشد و URL از نوع Decision.aspx است،
-         sheetIdهای مختلف را امتحان کن (1, 0, 2)
-      3. datasource اولیه‌ای که sheets داشته باشد را برگردان
+    استراتژی (بر اساس تحلیل codalpy و ساختار واقعی کدال):
+    
+      1. اگر URL از نوع Decision.aspx باشد:
+         ⚠️ URL اصلی معمولاً صفحه «نظر حسابرس» است و datasource آن
+         مربوط به نظر حسابرس است، نه داده مالی.
+         → مستقیماً sheetIdهای 0 تا 5 را امتحان کن و همه datasourceها
+         را MERGE کن.
+      
+      2. برای سایر URLها:
+         → اول URL اصلی را امتحان کن
+         → اگر datasource پیدا نشد، sheetIdها را امتحان کن
 
     Args:
         report_url: لینک مستقیم گزارش
 
     Returns:
-        dict: parsed datasource JSON
+        dict: parsed datasource JSON (ادغام شده si چند sheetId)
 
     Raises:
         ConnectionError: خطا در اتصال
@@ -820,89 +885,96 @@ def extract_datasource(report_url: str) -> dict:
     full_url = report_url if report_url.startswith("http") else CODAL_BASE_URL + report_url
     timeout = getattr(settings, "CODAL_REQUEST_TIMEOUT", 30)
 
-    # ─── مرحله ۱: امتحان URL اصلی ───
-    logger.info("Phase 1: Trying original URL: %s", full_url[:120])
+    is_decision_page = "Decision.aspx" in full_url
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # Decision.aspx: مستقیماً sheetIdها را امتحان کن و MERGE کن
+    # ═══════════════════════════════════════════════════════════════════════
+    if is_decision_page:
+        logger.info(
+            "Decision.aspx detected. Fetching all sheetIds and merging..."
+        )
+        sheet_urls = _build_sheet_urls(full_url, max_sheet_id=5)
+
+        found_datasources = []
+        last_html = None
+
+        for sid, url in sheet_urls:
+            try:
+                html = _fetch_html(url, timeout)
+                last_html = html
+            except ConnectionError as e:
+                logger.warning("Connection error for sheetId=%d: %s", sid, e)
+                continue
+
+            ds = _try_extract_datasource_from_html(html, url)
+            if ds:
+                logger.info("✅ sheetId=%d: got datasource with %d sheet(s)", sid, len(ds.get("sheets", [])))
+                found_datasources.append(ds)
+            else:
+                logger.info("❌ sheetId=%d: no datasource", sid)
+
+        if found_datasources:
+            merged = _merge_datasources(found_datasources)
+            logger.info(
+                "✅ Total: merged %d datasources → %d sheets",
+                len(found_datasources), len(merged.get("sheets", [])),
+            )
+            return merged
+
+        # هیچ sheetIdای datasource نداشت
+        page_title_m = re.search(r'<title>(.*?)</title>', (last_html or ""), re.IGNORECASE)
+        page_title = page_title_m.group(1).strip() if page_title_m else ""
+        html_len = len(last_html) if last_html else 0
+
+        raise ValueError(
+            f"متغیر datasource در صفحه Decision.aspx یافت نشد."
+            f"\nتمام sheetIdهای 0 تا 5 امتحان شدند."
+            f"\n\nعنوان صفحه: {page_title}"
+            f"\nطول HTML: {html_len} کاراکتر"
+            f"\nURL: {full_url[:150]}"
+        )
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # سایر صفحات: اول URL اصلی، بعد sheetId
+    # ═══════════════════════════════════════════════════════════════════════
+    logger.info("Non-Decision page. Trying original URL first: %s", full_url[:120])
     try:
         html = _fetch_html(full_url, timeout)
     except ConnectionError:
-        raise  # خطای اتصال را بالا بفرست
+        raise
 
     datasource = _try_extract_datasource_from_html(html, full_url)
     if datasource:
         return datasource
 
-    logger.info("No datasource on original URL. Checking if we should try sheetId...")
+    logger.info("No datasource on original URL. Trying sheetIds...")
+    sheet_urls = _build_sheet_urls(full_url, max_sheet_id=5)
 
-    # ─── مرحله ۲: امتحان با sheetId ───
-    # فقط برای URLهایی که به نظر می‌رسد صفحه گزارش کدال هستند
-    is_decision_page = "Decision.aspx" in full_url
-    is_report_page = "ReportList.aspx" in full_url or is_decision_page
-
-    if not is_report_page:
-        # برای URLهای غیرمعمول (مثل PDF لینک‌ها)
-        page_title_m = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
-        page_title = page_title_m.group(1).strip() if page_title_m else ""
-        raise ValueError(
-            f"متغیر datasource در صفحه یافت نشد. "
-            f"این لینک یک صفحه گزارش مالی کدال نیست."
-            f"\n\nعنوان صفحه: {page_title}"
-            f"\nطول HTML: {len(html)} کاراکتر"
-            f"\nURL: {full_url[:150]}"
-        )
-
-    # ساخت URLهای مختلف با sheetId
-    sheet_urls = _build_sheet_urls(full_url)
-    logger.info(
-        "Phase 2: Trying %d sheetId URLs for: %s",
-        len(sheet_urls), full_url[:100],
-    )
-
-    last_error = None
-    for url in sheet_urls:
-        # بررسی اینکه آیا این URL با URL اصلی متفاوت است
-        if url == full_url:
-            continue
-
+    found_datasources = []
+    for sid, url in sheet_urls:
         try:
             html = _fetch_html(url, timeout)
         except ConnectionError as e:
-            last_error = str(e)
-            logger.warning("Connection error for %s: %s", url[:100], e)
+            logger.warning("Connection error for sheetId=%d: %s", sid, e)
             continue
 
-        datasource = _try_extract_datasource_from_html(html, url)
-        if datasource:
-            logger.info("✅ Found datasource with sheetId from: %s", url[:100])
-            return datasource
+        ds = _try_extract_datasource_from_html(html, url)
+        if ds:
+            found_datasources.append(ds)
 
-    # ─── هیچ جا datasource پیدا نشد ───
+    if found_datasources:
+        return _merge_datasources(found_datasources)
+
+    # هیچ جا datasource پیدا نشد
     page_title_m = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
     page_title = page_title_m.group(1).strip() if page_title_m else ""
 
-    is_pdf = 'application/pdf' in html or '.pdf' in html[:2000]
-    is_search_only = 'ReportList.aspx' in full_url and 'search' in full_url and 'TracingNo' not in full_url
-
-    hints = []
-    if is_pdf:
-        hints.append("این گزارش فقط فایل PDF دارد.")
-    if is_search_only:
-        hints.append("این لینک به صفحه جستجو اشاره می‌کند، نه صفحه گزارش.")
-    if is_decision_page:
-        hints.append(
-            "صفحه Decision.aspx بود اما حتی با sheetId هم datasource پیدا نشد. "
-            "ممکن است گزارش به‌روزرسانی شده و ساختار آن تغییر کرده باشد."
-        )
-
-    hint_text = " ".join(hints) if hints else (
-        "ممکن است این گزارش فرمت قدیمی داشته باشد "
-        "یا صفحه گزارش ساختاریافته نباشد."
-    )
-
     raise ValueError(
-        f"متغیر datasource در صفحه یافت نشد (با sheetId هم تست شد). {hint_text}"
+        f"متغیر datasource در صفحه یافت نشد."
         f"\n\nعنوان صفحه: {page_title}"
         f"\nطول HTML: {len(html)} کاراکتر"
-        f"\nURL اصلی: {full_url[:150]}"
+        f"\nURL: {full_url[:150]}"
     )
 
 
