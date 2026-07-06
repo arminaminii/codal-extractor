@@ -20,7 +20,7 @@ from reports.models import Announcement
 from reports.services import (
     extract_datasource,
     _build_sheet_urls,
-    _normalize_persian,
+    _parse_cell_value,
     parse_financial_report,
 )
 
@@ -34,6 +34,41 @@ class Command(BaseCommand):
             "--raw", action="store_true",
             help="_dump کامل datasource JSON",
         )
+
+    def _show_cell(self, ci, cell, prefix=""):
+        """Print one cell's details."""
+        cc = cell.get("columnCode")
+        addr = cell.get("address", "")
+        val = cell.get("value")
+        pet = cell.get("periodEndToDate")
+        yet = cell.get("yearEndToDate")
+        rt = cell.get("rowTypeName", "")
+        rc = cell.get("rowCode")
+        fc = cell.get("financialConcept")
+
+        self.stdout.write(
+            f"      {prefix}[{ci}] addr={addr} cc={cc} rt={rt} rc={rc}"
+        )
+        # value with type info
+        val_repr = f"{val!r}" if val is not None else "None"
+        self.stdout.write(f"             value={val_repr[:60]}")
+        # periodEndToDate with type info
+        pet_repr = f"{pet!r}" if pet is not None else "None"
+        self.stdout.write(f"             pet={pet_repr[:60]} (type={type(pet).__name__})")
+        # yearEndToDate with type info
+        yet_repr = f"{yet!r}" if yet is not None else "None"
+        self.stdout.write(f"             yet={yet_repr[:60]} (type={type(yet).__name__})")
+        if fc:
+            self.stdout.write(f"             fc={fc}")
+        # Show what _parse_cell_value returns
+        parsed_pet = _parse_cell_value(pet)
+        parsed_yet = _parse_cell_value(yet)
+        if parsed_pet is not None or parsed_yet is not None:
+            self.stdout.write(
+                f"             → parsed: pet={parsed_pet}  yet={parsed_yet}"
+            )
+        else:
+            self.stdout.write(f"             → parsed: pet=None  yet=None  ⚠️")
 
     def handle(self, *args, **options):
         tid = options["tracking_id"]
@@ -77,7 +112,7 @@ class Command(BaseCommand):
 
         # ─── Top-level datasource info ───
         self.stdout.write(self.style.SUCCESS(f"✅ datasource دریافت شد"))
-        self.stdout.write(f"  عنوان:     {ds.get('title_Fa', '(ندارد)')}")
+        self.stdout.write(f"  عنوان:     {ds.get('title_Fa') or '(ندارد)'}")
         self.stdout.write(f"  دوره:      {ds.get('periodEndToDate', '(ندارد)')}")
         self.stdout.write(f"  پایان سال: {ds.get('yearEndToDate', '(ندارد)')}")
         self.stdout.write(f"  حسابرسی:   {'بله' if ds.get('isAudited') else 'خیر'}")
@@ -93,7 +128,7 @@ class Command(BaseCommand):
         # ─── Sheet-by-sheet analysis ───
         for si, sheet in enumerate(ds.get("sheets", [])):
             code = sheet.get("code", "?")
-            title = sheet.get("title_Fa", "(بدون عنوان)")
+            title = sheet.get("title_Fa") or "(بدون عنوان)"
             tables = sheet.get("tables", [])
             total_cells = sum(len(t.get("cells", [])) for t in tables)
 
@@ -107,13 +142,17 @@ class Command(BaseCommand):
             self.stdout.write(self.style.HTTP_INFO(f"{'─'*60}"))
 
             for ti, table in enumerate(tables):
-                table_title = table.get("title_Fa", "")
+                table_title = table.get("title_Fa") or ""
                 cells = table.get("cells", [])
                 if not cells:
                     self.stdout.write(self.style.WARNING(
                         f"    جدول {ti}: (بدون سلول) {table_title}"
                     ))
                     continue
+
+                # Separate label cells and data cells
+                label_cells = [c for c in cells if c.get("columnCode") == 1]
+                data_cells = [c for c in cells if c.get("columnCode") not in (1, None)]
 
                 # Structure analysis
                 has_addr = sum(1 for c in cells if c.get("address"))
@@ -132,29 +171,32 @@ class Command(BaseCommand):
                     f"financialConcept={has_fc}"
                 )
 
-                # Show first 3 cells raw
-                self.stdout.write(f"      ── نمونه سلول‌ها ──")
-                for ci, cell in enumerate(cells[:5]):
-                    cc = cell.get("columnCode")
-                    addr = cell.get("address", "")
-                    val = str(cell.get("value", ""))[:50]
-                    pet = str(cell.get("periodEndToDate", ""))[:30]
-                    yet = str(cell.get("yearEndToDate", ""))[:30]
-                    rt = cell.get("rowTypeName", "")
-                    rc = cell.get("rowCode")
-                    fc = cell.get("financialConcept")
+                # ── نمونه سلول‌های LABEL ──
+                self.stdout.write(f"      ── نمونه سلول‌های شرح (label) ──")
+                for ci, cell in enumerate(label_cells[:3]):
+                    self._show_cell(ci, cell)
 
-                    self.stdout.write(
-                        f"      [{ci}] addr={addr} cc={cc} rt={rt} rc={rc}"
-                    )
-                    self.stdout.write(f"           value={val}")
-                    self.stdout.write(f"           pet={pet}  yet={yet}")
-                    if fc:
-                        self.stdout.write(f"           fc={fc}")
+                # ── نمونه سلول‌های DATA ──
+                if data_cells:
+                    self.stdout.write(f"      ── نمونه سلول‌های داده‌ای (data) ──")
+                    for ci, cell in enumerate(data_cells[:5]):
+                        self._show_cell(ci, cell, prefix="📊")
+                else:
+                    self.stdout.write(self.style.WARNING(
+                        "      ⚠️ هیچ سلول داده‌ای (cc≠1) یافت نشد!"
+                    ))
+
+                # ── Analyze data format ──
+                if data_cells:
+                    pet_types = set(type(c.get("periodEndToDate")).__name__ for c in data_cells if c.get("periodEndToDate") is not None)
+                    pet_samples = [repr(c.get("periodEndToDate"))[:40] for c in data_cells[:3] if c.get("periodEndToDate") is not None]
+                    self.stdout.write(f"      ── فرمت داده ──")
+                    self.stdout.write(f"      نوع periodEndToDate: {pet_types}")
+                    self.stdout.write(f"      نمونه: {', '.join(pet_samples)}")
 
             self.stdout.write("")
 
-        # ─── Parse and show result summary ───
+        # ─── Parse and show result summary ──
         self.stdout.write(self.style.HTTP_INFO(f"{'='*60}"))
         self.stdout.write(self.style.HTTP_INFO("── نتیجه پارسینگ ──"))
         self.stdout.write(self.style.HTTP_INFO(f"{'='*60}"))
@@ -173,3 +215,12 @@ class Command(BaseCommand):
                 f"  [{cat:>10}] {title} → {rows_count} ردیف "
                 f"({rows_with_data} با عدد)"
             )
+            # Show first few rows with data
+            if rows_with_data > 0:
+                for t in sheet.get("tables", []):
+                    for r in t.get("rows", []):
+                        if r.get("period_value") is not None or r.get("year_value") is not None:
+                            self.stdout.write(
+                                f"    {r['concept'][:40]:42s} "
+                                f"pet={r.get('period_value')}  yet={r.get('year_value')}"
+                            )

@@ -1004,17 +1004,55 @@ def categorize_sheet(sheet: dict) -> str:
 
 
 def _parse_cell_value(val) -> float | None:
-    """تبدیل مقدار سلول به عدد. رشته‌های خالی و NaN را None برمی‌گرداند."""
+    """
+    تبدیل مقدار سلول به عدد.
+    
+    فرمت‌های پشتیبانی شده:
+      - عدد: 12345, 12345.0
+      - رشته عددی: "12345"
+      - رشته با کاما: "1,234,567", "1,234,567.50"
+      - عدد منفی: -12345, "(12345)"
+      - صفر: 0, "0"
+    
+    رشته‌های خالی، NaN و مقادیر غیرعددی → None
+    """
     if val is None:
         return None
-    try:
-        n = float(val)
-        # NaN یا infinity را نادیده بگیر
-        if n != n or n == float('inf') or n == float('-inf'):
+
+    # اگر عدد یا بولین است
+    if isinstance(val, (int, float)):
+        if val != val or val == float('inf') or val == float('-inf'):
             return None
-        return n
-    except (ValueError, TypeError):
-        return None
+        return float(val)
+
+    # اگر رشته است
+    if isinstance(val, str):
+        s = val.strip()
+        if not s or s in ('-', '--', '...', '۰', 'nan', 'NaN', 'null'):
+            return None
+
+        # حذف کامای جداکننده هزارگان
+        s = s.replace(',', '')
+
+        # عدد منفی در پرانتز: (12345) → -12345
+        if s.startswith('(') and s.endswith(')'):
+            s = '-' + s[1:-1]
+
+        # حذف فاصله‌ها (برخی گزارش‌ها فاصله دارند)
+        s = s.replace(' ', '')
+
+        if not s:
+            return None
+
+        try:
+            n = float(s)
+            if n != n or n == float('inf') or n == float('-inf'):
+                return None
+            return n
+        except (ValueError, TypeError):
+            return None
+
+    return None
 
 
 def _get_row_key(cell: dict) -> str | None:
