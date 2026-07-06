@@ -176,11 +176,26 @@ class Command(BaseCommand):
                 for ci, cell in enumerate(label_cells[:3]):
                     self._show_cell(ci, cell)
 
-                # ── نمونه سلول‌های DATA ──
+                # ── cc distribution ──
                 if data_cells:
-                    self.stdout.write(f"      ── نمونه سلول‌های داده‌ای (data) ──")
-                    for ci, cell in enumerate(data_cells[:5]):
-                        self._show_cell(ci, cell, prefix="📊")
+                    from collections import Counter
+                    cc_counts = Counter(c.get("columnCode") for c in data_cells)
+                    cc_str = "  ".join(f"cc{k}={v}" for k, v in sorted(cc_counts.items()))
+                    self.stdout.write(f"      توزیع columnCode: {cc_str}")
+
+                # ── نمونه سلول‌های DATA (per cc) ──
+                if data_cells:
+                    for target_cc in sorted(set(c.get("columnCode") for c in data_cells)):
+                        cc_cells = [c for c in data_cells if c.get("columnCode") == target_cc]
+                        self.stdout.write(f"      ── نمونه cc={target_cc} ({len(cc_cells)} سلول) ──")
+                        # Show cells that have numeric value
+                        numeric_samples = [c for c in cc_cells if c.get("value") and str(c.get("value", "")).strip().lstrip('-').replace(',','').replace(' ','').replace('(','').replace(')','').isdigit()]
+                        if numeric_samples:
+                            for ci, cell in enumerate(numeric_samples[:3]):
+                                self._show_cell(ci, cell, prefix="📊")
+                        else:
+                            for ci, cell in enumerate(cc_cells[:2]):
+                                self._show_cell(ci, cell, prefix="📊")
                 else:
                     self.stdout.write(self.style.WARNING(
                         "      ⚠️ هیچ سلول داده‌ای (cc≠1) یافت نشد!"

@@ -1215,20 +1215,24 @@ def parse_financial_report(datasource: dict) -> dict:
                     cc = cell.get("columnCode")
                     raw_value = cell.get("value")
                     
-                    if cc == 3:
-                        # ستون سال قبل (cc=3)
-                        val = _parse_cell_value(cell.get("yearEndToDate"))
-                        if val is None:
-                            val = _parse_cell_value(raw_value)
-                        if val is not None:
-                            rows_map[row_key]["year_value"] = val
-                    else:
-                        # ستون دوره جاری (cc=2 یا سایر)
+                    if cc == 2:
+                        # ستون دوره جاری
+                        # V6 جدید: value = عدد واقعی، periodEndToDate = تاریخ
+                        # قدیمی: periodEndToDate = عدد، value = متن نمایشی
                         val = _parse_cell_value(cell.get("periodEndToDate"))
                         if val is None:
                             val = _parse_cell_value(raw_value)
                         if val is not None:
                             rows_map[row_key]["period_value"] = val
+                    elif cc == 3:
+                        # ستون سال قبل / دوره مشابه
+                        val = _parse_cell_value(cell.get("yearEndToDate"))
+                        if val is None:
+                            val = _parse_cell_value(raw_value)
+                        if val is not None:
+                            rows_map[row_key]["year_value"] = val
+                    # cc=1 handled by _is_label_cell
+                    # cc>=4 (ستون‌های اضافی مثل سال مالی قبل) نادیده گرفته می‌شوند
             
             # محاسبه indent بر اساس نوع ردیف
             for row_key in rows_map:
