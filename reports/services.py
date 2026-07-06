@@ -537,20 +537,72 @@ SHEET_CATEGORY_MAP = {
 }
 
 # نام‌های مختلف یک مفهوم مالی در گزارش‌های مختلف شرکت‌ها
+# شامل فرم‌های واقعی کدال: ها/ی، فاصله پرانتز، نیم‌فاصله
+# ⚠️ alias‌های خیلی کوتاه (مثل "فروش" یا "درآمد") حذف شدند چون
+#    ممکنه مفاهیم اشتباه مثل "هزینه فروش" رو match کنند.
 CONCEPT_ALIASES = {
-    "revenue": ["درآمد عملیاتی", "فروش خالص", "فروش", "درآمد فروش", "درآمد", "Net Revenue", "Revenue", "بهای فروش کالا و خدمات"],
-    "cogs": ["بهای تمام شده", "بهای تمام\u200cشده", "بهای تمام شده کالای فروش رفته", "بهای تمام\u200cشده کالای فروش رفته", "Cost of Goods Sold", "Cost of Revenue"],
-    "gross_profit": ["سود ناخالص", "سود (زیان) ناخالص", "Gross Profit", "Gross Loss"],
-    "operating_profit": ["سود عملیاتی", "سود (زیان) عملیاتی", "Operating Profit", "Operating Income", "سود (زیان) ناخالص عملیاتی"],
-    "net_income": ["سود خالص", "سود (زیان) خالص", "Net Income", "Net Profit", "سود (زیان) پس از مالیات"],
-    "total_current_assets": ["جمع دارایی‌های جاری", "جمع دارایی جاری", "Current Assets", "Total Current Assets"],
-    "total_noncurrent_assets": ["جمع دارایی‌های غیرجاری", "جمع دارایی غیرجاری", "Non-Current Assets"],
-    "total_assets": ["جمع کل دارایی‌ها", "جمع دارایی‌ها", "Total Assets", "Total of Assets"],
-    "total_current_liabilities": ["جمع بدهی‌های جاری", "جمع بدهی جاری", "Current Liabilities", "Total Current Liabilities"],
-    "total_noncurrent_liabilities": ["جمع بدهی‌های غیرجاری", "جمع بدهی غیرجاری", "Non-Current Liabilities"],
-    "total_liabilities": ["جمع کل بدهی‌ها", "جمع بدهی‌ها", "Total Liabilities"],
-    "total_equity": ["جمع حقوق صاحبان سهام", "حقوق صاحبان سهام", "Total Equity", "Equity", "Shareholders' Equity"],
-    "operating_cashflow": ["جریان نقد عملیاتی", "جریان نقد حاصل از فعالیت‌های عملیاتی", "Operating Cash Flow", "Cash from Operating Activities"],
+    "revenue": [
+        "درآمدهای عملیاتی", "درآمدهاي عملياتي",
+        "درآمد عملیاتی",
+        "فروش خالص", "درآمد فروش",
+        "بهای فروش کالا و خدمات",
+    ],
+    "cogs": [
+        "بهای تمام شده درآمدهای عملیاتی", "بهای تمام شده درآمدهاي عملياتي",
+        "بهای تمام شده", "بهای تمام\u200cشده",
+        "بهای تمام شده کالای فروش رفته", "بهای تمام\u200cشده کالای فروش رفته",
+        "Cost of Goods Sold", "Cost of Revenue",
+    ],
+    "gross_profit": [
+        "سود(زیان) ناخالص", "سود (زیان) ناخالص", "سود ناخالص",
+        "سود(زیان)ناخالص", "سود (زیان)ناخالص",
+        "Gross Profit", "Gross Loss",
+    ],
+    "operating_profit": [
+        "سود(زیان) عملیاتى", "سود(زیان) عملیاتی", "سود (زیان) عملیاتی",
+        "سود(زیان) عملیات", "سود (زیان) عملیات",
+        "سود (زیان) ناخالص عملیاتی",
+        "Operating Profit", "Operating Income",
+    ],
+    "net_income": [
+        "سود(زیان) خالص", "سود (زیان) خالص", "سود خالص",
+        "سود(زیان)خالص", "سود (زیان)خالص",
+        "سود(زیان) پس از مالیات", "سود (زیان) پس از مالیات",
+        "Net Income", "Net Profit",
+    ],
+    "total_current_assets": [
+        "جمع دارایی‌های جاری", "جمع دارایی جاری", "جمع داراییهای جاری",
+        "Current Assets", "Total Current Assets",
+    ],
+    "total_noncurrent_assets": [
+        "جمع دارایی‌های غیرجاری", "جمع دارایی غیرجاری", "جمع داراییهای غیرجاری",
+        "Non-Current Assets",
+    ],
+    "total_assets": [
+        "جمع کل دارایی‌ها", "جمع دارایی‌ها", "جمع داراییها",
+        "Total Assets", "Total of Assets",
+    ],
+    "total_current_liabilities": [
+        "جمع بدهی‌های جاری", "جمع بدهی جاری", "جمع بدهیهای جاری",
+        "Current Liabilities", "Total Current Liabilities",
+    ],
+    "total_noncurrent_liabilities": [
+        "جمع بدهی‌های غیرجاری", "جمع بدهی غیرجاری", "جمع بدهیهای غیرجاری",
+        "Non-Current Liabilities",
+    ],
+    "total_liabilities": [
+        "جمع کل بدهی‌ها", "جمع بدهی‌ها", "جمع بدهیها",
+        "Total Liabilities",
+    ],
+    "total_equity": [
+        "جمع حقوق صاحبان سهام", "حقوق صاحبان سهام",
+        "Total Equity", "Equity", "Shareholders' Equity",
+    ],
+    "operating_cashflow": [
+        "جریان نقد عملیاتی", "جریان نقد حاصل از فعالیت‌های عملیاتی",
+        "جریان نقد حاصل از فعاليت‌هاي عملياتي",
+        "Operating Cash Flow", "Cash from Operating Activities",
+    ],
 }
 
 
@@ -735,13 +787,20 @@ def parse_financial_report(datasource: dict) -> dict:
                         "concept": "",
                         "period_value": None,
                         "year_value": None,
-                        "row_type": cell.get("row_type_name", ""),
+                        # کدال از camelCase استفاده می‌کنه: rowTypeName
+                        "row_type": cell.get("rowTypeName", "") or cell.get("row_type_name", ""),
                         "indent": 0,
                     }
                 
                 # ستون A = شرح، بقیه = مقادیر عددی
                 if col_letter == "A":
-                    concept_text = cell.get("financial_concept") or cell.get("value") or ""
+                    # financialConcept معمولاً null هست، value نام فارسی رو داره
+                    concept_text = (
+                        cell.get("financialConcept")
+                        or cell.get("financial_concept")
+                        or cell.get("value")
+                        or ""
+                    )
                     rows_map[row_num]["concept"] = _normalize_persian(str(concept_text))
                 else:
                     # مقدار دوره جاری
@@ -781,24 +840,51 @@ def parse_financial_report(datasource: dict) -> dict:
     return result
 
 
+def _normalize_for_match(text: str) -> str:
+    """نرمالایز کردن متن برای مقایسه: حذف نیم‌فاصله، فاصله اطراف پرانتز، فاصله‌های اضافی."""
+    t = text.replace("\u200c", "")  # نیم‌فاصله
+    t = re.sub(r"\s*\(\s*", "(", t)  # فاصله قبل (
+    t = re.sub(r"\s*\)\s*", ")", t)  # فاصله بعد )
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
 def _find_value_in_sheet(sheet: dict, concept_key: str, field: str = "period_value") -> float | None:
-    """پیدا کردن مقدار یک مفهوم مالی در یک شیت"""
+    """
+    پیدا کردن مقدار یک مفهوم مالی در یک شیت.
+    از تطبیق نرمالایز شده با اولویت طولانی‌ترین match استفاده می‌کند.
+    """
     if not sheet:
         return None
     aliases = CONCEPT_ALIASES.get(concept_key, [concept_key])
-    
+
+    # نرمالایز کردن alias‌های این مفهوم
+    normalized_aliases = []
+    for alias in aliases:
+        na = _normalize_for_match(alias)
+        if na:
+            normalized_aliases.append(na)
+
+    best_val = None
+    best_len = 0
+
     for table in sheet.get("tables", []):
         for row in table.get("rows", []):
             concept = row.get("concept", "")
-            for alias in aliases:
-                if alias in concept or concept in alias:
-                    val = row.get(field)
-                    if val is not None:
-                        try:
-                            return float(val)
-                        except (ValueError, TypeError):
-                            pass
-    return None
+            concept_norm = _normalize_for_match(concept)
+            for alias_norm in normalized_aliases:
+                # تطبیق دوجانبه: alias داخل concept یا برعکس
+                if alias_norm in concept_norm or concept_norm in alias_norm:
+                    match_len = min(len(alias_norm), len(concept_norm))
+                    if match_len > best_len:
+                        val = row.get(field)
+                        if val is not None:
+                            try:
+                                best_val = float(val)
+                                best_len = match_len
+                            except (ValueError, TypeError):
+                                pass
+    return best_val
 
 
 def _safe_divide(numerator, denominator) -> float | None:
