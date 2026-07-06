@@ -527,6 +527,12 @@ def resolve_search_query(query: str) -> str:
 # استخراج اطلاعات مالی از صفحات گزارش کدال
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# کدهای نامه‌ای که واقعاً صورت مالی ساختاریافته دارند (دارای var datasource)
+FINANCIAL_STATEMENT_CODES = {
+    "ن-۱۰", "ن-۳۱", "ن-۳۲", "ن-۳۳", "ن-۳۴", "ن-۲۶",
+    "N-10", "N-31", "N-32", "N-33", "N-34", "N-26",
+}
+
 CODAL_BASE_URL = "https://codal.ir"
 
 # نقشه شیت‌ها: SheetId → نوع شیت
@@ -546,32 +552,38 @@ CONCEPT_ALIASES = {
         "درآمد عملیاتی",
         "فروش خالص", "درآمد فروش",
         "بهای فروش کالا و خدمات",
+        "فروش",
     ],
     "cogs": [
         "بهای تمام شده درآمدهای عملیاتی", "بهای تمام شده درآمدهاي عملياتي",
         "بهای تمام شده", "بهای تمام\u200cشده",
         "بهای تمام شده کالای فروش رفته", "بهای تمام\u200cشده کالای فروش رفته",
+        "هزینه های عملیاتی", "هزینه‌های عملیاتی",
         "Cost of Goods Sold", "Cost of Revenue",
     ],
     "gross_profit": [
         "سود(زیان) ناخالص", "سود (زیان) ناخالص", "سود ناخالص",
         "سود(زیان)ناخالص", "سود (زیان)ناخالص",
+        "سود (زیان) ناخالص عملیاتی",
         "Gross Profit", "Gross Loss",
     ],
     "operating_profit": [
         "سود(زیان) عملیاتى", "سود(زیان) عملیاتی", "سود (زیان) عملیاتی",
         "سود(زیان) عملیات", "سود (زیان) عملیات",
         "سود (زیان) ناخالص عملیاتی",
+        "سود عملیاتی",
         "Operating Profit", "Operating Income",
     ],
     "net_income": [
         "سود(زیان) خالص", "سود (زیان) خالص", "سود خالص",
         "سود(زیان)خالص", "سود (زیان)خالص",
         "سود(زیان) پس از مالیات", "سود (زیان) پس از مالیات",
+        "سود خالص پس از مالیات",
         "Net Income", "Net Profit",
     ],
     "total_current_assets": [
         "جمع دارایی‌های جاری", "جمع دارایی جاری", "جمع داراییهای جاری",
+        "دارایی جاری", "دارایی‌های جاری",
         "Current Assets", "Total Current Assets",
     ],
     "total_noncurrent_assets": [
@@ -580,10 +592,12 @@ CONCEPT_ALIASES = {
     ],
     "total_assets": [
         "جمع کل دارایی‌ها", "جمع دارایی‌ها", "جمع داراییها",
+        "جمع کل دارایی",
         "Total Assets", "Total of Assets",
     ],
     "total_current_liabilities": [
         "جمع بدهی‌های جاری", "جمع بدهی جاری", "جمع بدهیهای جاری",
+        "بدهی جاری",
         "Current Liabilities", "Total Current Liabilities",
     ],
     "total_noncurrent_liabilities": [
@@ -592,82 +606,43 @@ CONCEPT_ALIASES = {
     ],
     "total_liabilities": [
         "جمع کل بدهی‌ها", "جمع بدهی‌ها", "جمع بدهیها",
+        "جمع کل بدهی",
         "Total Liabilities",
     ],
     "total_equity": [
         "جمع حقوق صاحبان سهام", "حقوق صاحبان سهام",
+        "حقوق صاحبان سهام (بدون سود تقسیمی)",
         "Total Equity", "Equity", "Shareholders' Equity",
     ],
     "operating_cashflow": [
         "جریان نقد عملیاتی", "جریان نقد حاصل از فعالیت‌های عملیاتی",
         "جریان نقد حاصل از فعاليت‌هاي عملياتي",
+        "جریان نقد حاصل از فعالیت های عملیاتی",
+        "خالص جریان نقد حاصل از فعالیت‌های عملیاتی",
         "Operating Cash Flow", "Cash from Operating Activities",
     ],
 }
 
 
-def extract_datasource(report_url: str) -> dict:
+def _extract_json_by_braces(html: str, var_start: int) -> tuple[str, int]:
     """
-    دریافت HTML صفحه گزارش کدال و استخراج var datasource = {...}
-    
-    Args:
-        report_url: لینک مستقیم گزارش (مثل https://codal.ir/ReportList.aspx?...)
+    از موقعیت var_start به بعد، ابتدا '=' و سپس '{' اول را پیدا کند
+    و با شمارنده آکولاد متعادل JSON را استخراج کند.
     
     Returns:
-        dict: parsed datasource JSON
-    
+        (json_string, end_position)
     Raises:
-        ConnectionError: خطا در اتصال
-        ValueError: datasource یافت نشد
+        ValueError: اگر نتواند پیدا کند
     """
-    full_url = report_url if report_url.startswith("http") else CODAL_BASE_URL + report_url
-    
-    timeout = getattr(settings, "CODAL_REQUEST_TIMEOUT", 30)
-    
-    resp = None
+    eq_pos = html.find('=', var_start)
+    if eq_pos == -1:
+        raise ValueError(f"= after var not found (pos {var_start})")
 
-    for attempt in range(MAX_RETRIES):
-        try:
-            logger.info("Fetching report page: %s (attempt %d)", full_url, attempt + 1)
-            resp = requests.get(full_url, headers=HEADERS, timeout=timeout)
+    # از بعد از = به دنبال { بگرد
+    json_start = html.find('{', eq_pos)
+    if json_start == -1:
+        raise ValueError(f"{{ after = not found (pos {eq_pos})")
 
-            if resp.status_code == 429:
-                wait = 10 * (2 ** attempt)
-                logger.warning("429 on report fetch. Waiting %ds", wait)
-                time.sleep(wait)
-                continue
-
-            resp.raise_for_status()
-            break  # success
-        except requests.ConnectionError as e:
-            raise ConnectionError(f"خطا در اتصال به کدال: {e}")
-        except requests.Timeout:
-            raise ConnectionError("درخواست به سرور کدال طول کشید و قطع شد.")
-        except requests.RequestException as e:
-            raise ConnectionError(f"خطا در دریافت گزارش: {e}")
-    else:
-        # تمام تلاش‌ها 429 شدند
-        raise ConnectionError(
-            "درخواست‌های شما بیش از حد مجاز است (429). "
-            "لطفاً چند دقیقه صبر کنید و دوباره تلاش کنید."
-        )
-
-    html = resp.text
-
-    # استخراج var datasource = {...}
-    # از شمارنده آکولاد متعادل استفاده می‌کنیم چون datasource JSON بزرگی است
-    # و regex ساده با .*? در اولین }; اشتباه متوقف می‌شود.
-    ds_start = html.find("var datasource")
-    if ds_start == -1:
-        raise ValueError(
-            "متغیر datasource در صفحه یافت نشد. "
-            "ممکن است این گزارش فرمت قدیمی داشته باشد یا فایل HTML نداشته باشد."
-        )
-
-    eq_pos = html.index('=', ds_start)
-    json_start = html.index('{', eq_pos)
-
-    # شمارنده آکولاد متعادل + رعایت string‌ها
     depth = 0
     json_end = -1
     i = json_start
@@ -704,16 +679,129 @@ def extract_datasource(report_url: str) -> dict:
         i += 1
 
     if json_end == -1:
-        raise ValueError("نتوانست انتهای JSON datasource را پیدا کند (آکولادها بسته نشدند).")
+        raise ValueError("Could not find matching closing brace for JSON")
 
-    json_str = html[json_start:json_end + 1]
+    return html[json_start:json_end + 1], json_end
+
+
+def extract_datasource(report_url: str) -> dict:
+    """
+    دریافت HTML صفحه گزارش کدال و استخراج var datasource = {...}
+    
+    Args:
+        report_url: لینک مستقیم گزارش (مثل https://codal.ir/ReportList.aspx?...)
+    
+    Returns:
+        dict: parsed datasource JSON
+    
+    Raises:
+        ConnectionError: خطا در اتصال
+        ValueError: datasource یافت نشد
+    """
+    full_url = report_url if report_url.startswith("http") else CODAL_BASE_URL + report_url
+    
+    timeout = getattr(settings, "CODAL_REQUEST_TIMEOUT", 30)
+    
+    resp = None
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            logger.info("Fetching report page: %s (attempt %d)", full_url, attempt + 1)
+            resp = requests.get(full_url, headers=HEADERS, timeout=timeout,
+                                allow_redirects=True)
+
+            if resp.status_code == 429:
+                wait = 10 * (2 ** attempt)
+                logger.warning("429 on report fetch. Waiting %ds", wait)
+                time.sleep(wait)
+                continue
+
+            resp.raise_for_status()
+            break  # success
+        except requests.ConnectionError as e:
+            raise ConnectionError(f"خطا در اتصال به کدال: {e}")
+        except requests.Timeout:
+            raise ConnectionError("درخواست به سرور کدال طول کشید و قطع شد.")
+        except requests.RequestException as e:
+            raise ConnectionError(f"خطا در دریافت گزارش: {e}")
+    else:
+        # تمام تلاش‌ها 429 شدند
+        raise ConnectionError(
+            "درخواست‌های شما بیش از حد مجاز است (429). "
+            "لطفاً چند دقیقه صبر کنید و دوباره تلاش کنید."
+        )
+
+    html = resp.text
+
+    # ─── استخراج datasource ───
+    # نام‌های مختلف متغیر datasource در صفحات کدال
+    ds_var_names = [
+        "var datasource",
+        "var datasource =",
+        "var Data",
+        "var data",
+    ]
+    
+    json_str = None
+    
+    for var_name in ds_var_names:
+        ds_start = html.find(var_name)
+        if ds_start == -1:
+            continue
+        
+        logger.info("Found variable: '%s' at position %d", var_name, ds_start)
+        try:
+            json_str, _ = _extract_json_by_braces(html, ds_start)
+            break
+        except ValueError as e:
+            logger.warning("Failed to extract JSON for '%s': %s", var_name, e)
+            continue
+    
+    if json_str is None:
+        # بررسی‌های تشخیصی
+        is_pdf = 'application/pdf' in html or '.pdf' in html[:2000]
+        is_search_page = 'ReportList.aspx' in full_url and 'search' in full_url and 'TracingNo' not in full_url
+        is_iframe = 'iframe' in html.lower()[:5000]
+        page_title_m = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
+        page_title = page_title_m.group(1).strip() if page_title_m else ""
+        
+        hints = []
+        if is_pdf:
+            hints.append("این گزارش فقط فایل PDF دارد.")
+        if is_search_page:
+            hints.append("این لینک به صفحه جستجو اشاره می‌کند، نه صفحه گزارش.")
+        if is_iframe:
+            hints.append("گزارش در iframe بارگذاری شده و مستقیماً قابل خواندن نیست.")
+        if not html or len(html) < 500:
+            hints.append("صفحه خالی یا بسیار کوتاه دریافت شد.")
+        
+        hint_text = " ".join(hints) if hints else (
+            "ممکن است این گزارش فرمت قدیمی داشته باشد، "
+            "فقط فایل PDF داشته باشد، یا صفحه گزارش ساختاریافته نباشد."
+        )
+        
+        raise ValueError(
+            f"متغیر datasource در صفحه یافت نشد. {hint_text}"
+            f"\n\nعنوان صفحه: {page_title}"
+            f"\nطول HTML: {len(html)} کاراکتر"
+            f"\nURL: {full_url[:150]}"
+        )
 
     try:
         datasource = json.loads(json_str)
     except json.JSONDecodeError as e:
         raise ValueError(f"خطا در پارس JSON datasource: {e}")
     
-    logger.info("Datasource extracted successfully. Sheets: %d", len(datasource.get("sheets", [])))
+    # اعتبارسنجی حداقلی
+    if not isinstance(datasource, dict):
+        raise ValueError("datasource استخراج شده یک dict معتبر نیست.")
+    
+    sheets = datasource.get("sheets", [])
+    logger.info(
+        "Datasource extracted successfully. Sheets: %d, Title: %s",
+        len(sheets),
+        datasource.get("title_Fa", "")[:50],
+    )
     return datasource
 
 
@@ -723,13 +811,13 @@ def categorize_sheet(sheet: dict) -> str:
     title = _normalize_persian(sheet.get("title_Fa", ""))
     
     # اول بر اساس کد
-    if code in SHEET_CATEGORY_MAP:
+    if code is not None and code in SHEET_CATEGORY_MAP:
         return SHEET_CATEGORY_MAP[code]
     
-    # بعد بر اساس عنوان
-    if "ترازنامه" in title or "وضعیت مالی" in title:
+    # بعد بر اساس عنوان (با اولویت طولانی‌ترین match)
+    if any(kw in title for kw in ("ترازنامه", "وضعیت مالی", "بدهی‌ها")):
         return "balance"
-    if "سود و زیان" in title or "عملکرد مالی" in title:
+    if any(kw in title for kw in ("سود و زیان", "عملکرد مالی", "درآمد")):
         return "income"
     if "جریان" in title and "نقد" in title:
         return "cashflow"
@@ -737,9 +825,76 @@ def categorize_sheet(sheet: dict) -> str:
     return "notes"
 
 
+def _parse_cell_value(val) -> float | None:
+    """تبدیل مقدار سلول به عدد. رشته‌های خالی و NaN را None برمی‌گرداند."""
+    if val is None:
+        return None
+    try:
+        n = float(val)
+        # NaN یا infinity را نادیده بگیر
+        if n != n or n == float('inf') or n == float('-inf'):
+            return None
+        return n
+    except (ValueError, TypeError):
+        return None
+
+
+def _get_row_key(cell: dict) -> str | None:
+    """
+    استخراج کلید ردیف از سلول.
+    فرمت‌های ممکن:
+      - address: "A1", "B2" → ردیف = عدد
+      - rowCode / rowSequence: عدد
+    """
+    addr = cell.get("address", "")
+    if addr:
+        m = re.match(r'[A-Z]+(\d+)', addr)
+        if m:
+            return m.group(1)
+
+    row_code = cell.get("rowCode")
+    if row_code is not None:
+        return str(row_code)
+
+    row_seq = cell.get("rowSequence")
+    if row_seq is not None:
+        return str(row_seq)
+
+    return None
+
+
+def _is_label_cell(cell: dict, has_address: bool) -> bool:
+    """
+    آیا این سلول سلول توضیحات (شرح) است؟
+    
+    وقتی سلول‌ها address دارند → ستون A = شرح
+    وقتی columnCode دارند → columnCode == 1 = شرح
+    """
+    if has_address:
+        addr = cell.get("address", "")
+        m = re.match(r'([A-Z]+)\d+', addr) if addr else None
+        if m:
+            return m.group(1) == "A"
+
+    col_code = cell.get("columnCode")
+    if col_code is not None:
+        return col_code == 1
+
+    # Fallback: اگر value رشته‌ای طولانی باشد و هیچ عدد نباشد → احتمالاً شرح است
+    val = cell.get("value", "")
+    if isinstance(val, str) and len(val) > 2 and not re.search(r'\d', val):
+        return True
+
+    return False
+
+
 def parse_financial_report(datasource: dict) -> dict:
     """
     پارس datasource به ساختار ساختاریافته برای نمایش در قالب.
+    
+    از دو استراتژی برای گروه‌بندی سلول‌ها استفاده می‌کند:
+      1. address-based: سلول‌هایی با address مثل "A1", "B2" (فرمت اکسل)
+      2. columnCode-based: سلول‌هایی با columnCode/rowCode
     
     Returns:
         dict with keys: title, period, year_end, is_audited, is_consolidated, sheets
@@ -772,66 +927,90 @@ def parse_financial_report(datasource: dict) -> dict:
                 "rows": [],
             }
             
-            # گروه‌بندی سلول‌ها بر اساس آدرس ردیف
-            rows_map = {}
-            for cell in table.get("cells", []):
-                addr = cell.get("address", "")
-                row_match = re.match(r'([A-Z]+)(\d+)', addr)
-                if not row_match:
+            cells = table.get("cells", [])
+            if not cells:
+                sheet_data["tables"].append(table_data)
+                continue
+            
+            # بررسی اینکه آیا سلول‌ها از address استفاده می‌کنند
+            has_address = any(
+                bool(re.match(r'[A-Z]+\d+', c.get("address", "")))
+                for c in cells if c.get("address")
+            )
+            
+            # بررسی اینکه آیا سلول‌ها از columnCode استفاده می‌کنند
+            has_column_code = any(c.get("columnCode") is not None for c in cells)
+            
+            if not has_address and not has_column_code:
+                logger.warning(
+                    "Table has %d cells but no address or columnCode. "
+                    "Keys: %s",
+                    len(cells),
+                    list(cells[0].keys())[:10] if cells else "(none)",
+                )
+                sheet_data["tables"].append(table_data)
+                continue
+            
+            # گروه‌بندی سلول‌ها بر اساس ردیف
+            rows_map: dict[str, dict] = {}
+            
+            for cell in cells:
+                row_key = _get_row_key(cell)
+                if row_key is None:
                     continue
-                row_num = row_match.group(2)
-                col_letter = row_match.group(1)
                 
-                if row_num not in rows_map:
-                    rows_map[row_num] = {
+                if row_key not in rows_map:
+                    rows_map[row_key] = {
                         "concept": "",
                         "period_value": None,
                         "year_value": None,
-                        # کدال از camelCase استفاده می‌کنه: rowTypeName
-                        "row_type": cell.get("rowTypeName", "") or cell.get("row_type_name", ""),
+                        "row_type": (
+                            cell.get("rowTypeName", "")
+                            or cell.get("row_type_name", "")
+                            or ""
+                        ),
                         "indent": 0,
                     }
                 
-                # ستون A = شرح، بقیه = مقادیر عددی
-                if col_letter == "A":
-                    # financialConcept معمولاً null هست، value نام فارسی رو داره
+                if _is_label_cell(cell, has_address):
+                    # سلول شرح → نام مفهوم را استخراج کن
                     concept_text = (
                         cell.get("financialConcept")
                         or cell.get("financial_concept")
                         or cell.get("value")
                         or ""
                     )
-                    rows_map[row_num]["concept"] = _normalize_persian(str(concept_text))
+                    if concept_text:
+                        rows_map[row_key]["concept"] = _normalize_persian(str(concept_text))
                 else:
-                    # مقدار دوره جاری
-                    val = cell.get("periodEndToDate")
+                    # سلول داده‌ای → مقادیر عددی را استخراج کن
+                    val = _parse_cell_value(cell.get("periodEndToDate"))
                     if val is not None:
-                        try:
-                            rows_map[row_num]["period_value"] = float(val)
-                        except (ValueError, TypeError):
-                            rows_map[row_num]["period_value"] = val
+                        rows_map[row_key]["period_value"] = val
                     
-                    # مقدار مقایسه‌ای (سال قبل)
-                    val_year = cell.get("yearEndToDate")
+                    val_year = _parse_cell_value(cell.get("yearEndToDate"))
                     if val_year is not None:
-                        try:
-                            rows_map[row_num]["year_value"] = float(val_year)
-                        except (ValueError, TypeError):
-                            rows_map[row_num]["year_value"] = val_year
+                        rows_map[row_key]["year_value"] = val_year
             
-            # محاسبه indent
-            for row_num in rows_map:
-                rt = rows_map[row_num]["row_type"]
+            # محاسبه indent بر اساس نوع ردیف
+            for row_key in rows_map:
+                rt = rows_map[row_key]["row_type"]
                 if rt in ("Header", "Title", "GroupHeader"):
-                    rows_map[row_num]["indent"] = 0
+                    rows_map[row_key]["indent"] = 0
                 elif rt == "SubGroupHeader":
-                    rows_map[row_num]["indent"] = 1
+                    rows_map[row_key]["indent"] = 1
                 else:
-                    rows_map[row_num]["indent"] = 2
+                    rows_map[row_key]["indent"] = 2
             
-            # مرتب‌سازی بر اساس شماره ردیف
-            for row_num in sorted(rows_map.keys(), key=lambda x: int(x)):
-                table_data["rows"].append(rows_map[row_num])
+            # مرتب‌سازی بر اساس شماره ردیف (عددی اگر ممکن باشد)
+            def _sort_key(k):
+                try:
+                    return (0, int(k))
+                except (ValueError, TypeError):
+                    return (1, k)
+            
+            for row_key in sorted(rows_map.keys(), key=_sort_key):
+                table_data["rows"].append(rows_map[row_key])
             
             sheet_data["tables"].append(table_data)
         

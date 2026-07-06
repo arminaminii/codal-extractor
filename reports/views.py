@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from .models import Announcement, Company
 from .services import (
     _normalize_persian,
+    FINANCIAL_STATEMENT_CODES,
     get_financial_report,
     categorize_letter_code,
     get_all_sectors,
@@ -94,6 +95,9 @@ def reports(request, symbol):
 
     for ann in announcements:
         cat = categorize_letter_code(ann.letter_code)
+        lc = (ann.letter_code or "").strip()
+        # فقط صورت‌های مالی واقعی (ن-۱۰، ن-۳۱ و ...) قابل تحلیل هستند
+        can_analyze = lc in FINANCIAL_STATEMENT_CODES
         entry = {
             "tracking_id": ann.tracking_id,
             "symbol": ann.symbol,
@@ -104,6 +108,7 @@ def reports(request, symbol):
             "category": cat["category"],
             "category_label": cat["label"],
             "category_color": cat["color"],
+            "can_analyze": can_analyze,
         }
         all_categorized.append(entry)
         seen_categories[cat["category"]] = cat

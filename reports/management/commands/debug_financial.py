@@ -35,6 +35,7 @@ class Command(BaseCommand):
         self.stdout.write(f"عنوان: {ann.title[:80]}")
         self.stdout.write(f"نماد:  {ann.symbol}")
         self.stdout.write(f"لینک:  {ann.direct_link[:100]}")
+        self.stdout.write(f"کد نامه: {ann.letter_code}")
         self.stdout.write("")
 
         # ─── Fetch datasource ───
@@ -49,6 +50,18 @@ class Command(BaseCommand):
         self.stdout.write(f"تعداد شیت‌ها: {len(ds.get('sheets', []))}")
         self.stdout.write("")
 
+        # ─── Show raw cell keys for first cell ───
+        self.stdout.write(self.style.HTTP_INFO("── کلیدهای سلول اول (برای بررسی ساختار) ──"))
+        for sheet in ds.get("sheets", []):
+            for table in sheet.get("tables", []):
+                for cell in table.get("cells", [])[:1]:
+                    for key, val in cell.items():
+                        val_str = str(val)[:80]
+                        self.stdout.write(f"  {key}: {val_str}")
+                    self.stdout.write("")
+                break
+            break
+
         # ─── List all concepts per sheet ───
         for sheet in ds.get("sheets", []):
             code = sheet.get("code", "?")
@@ -62,12 +75,22 @@ class Command(BaseCommand):
                 if table_title:
                     self.stdout.write(f"  ── جدول: {table_title}")
 
+                cells = table.get("cells", [])
+                if not cells:
+                    self.stdout.write(self.style.WARNING("    (سلولی یافت نشد)"))
+                    continue
+
+                # Check structure
+                has_addr = any(c.get("address") for c in cells)
+                has_cc = any(c.get("columnCode") is not None for c in cells)
+                self.stdout.write(f"    ساختار: address={'✓' if has_addr else '✗'} columnCode={'✓' if has_cc else '✗'} ({len(cells)} سلول)")
+
                 concepts = set()
-                for cell in table.get("cells", []):
-                    fc = cell.get("financial_concept") or ""
+                for cell in cells:
                     val = cell.get("value") or ""
-                    # ترکیب financial_concept و value
-                    label = fc or val
+                    fc = cell.get("financialConcept") or ""
+                    cc = cell.get("columnCode")
+                    label = fc or (val if cc == 1 else "")
                     if label:
                         concepts.add(_normalize_persian(label))
 
@@ -79,7 +102,7 @@ class Command(BaseCommand):
 
             self.stdout.write("")
 
-        # ─── Also show raw JSON of first 2 cells for inspection ───
+        # ─── Also show raw JSON of first 3 cells for inspection ───
         self.stdout.write(self.style.HTTP_INFO("── نمونه سلول‌های خام (اول ۳ تا) ──"))
         count = 0
         for sheet in ds.get("sheets", []):
