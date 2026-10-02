@@ -972,6 +972,11 @@ html { scroll-behavior: smooth; }
 }
 
 .fin-ratio-value.fin-old { color: var(--text-muted); font-weight: 400; }
+.fin-ratio-value.fin-ratio-na {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 500;
+}
 
 /* Data Rows */
 .fin-data-row {

@@ -29,9 +29,9 @@
         <div class="fin-report-meta">
             <span>{{ announcement.symbol }}</span>
             <span class="fin-meta-sep">|</span>
-            <span>دوره: {{ report.period }}</span>
+            <span>دوره: {{ report.period|fa_digits }}</span>
             <span class="fin-meta-sep">|</span>
-            <span>پایان سال مالی: {{ report.year_end }}</span>
+            <span>پایان سال مالی: {{ report.year_end|fa_digits }}</span>
             {% if report.is_audited %}
             <span class="fin-audit-badge">حسابرسی شده</span>
             {% endif %}
@@ -84,8 +84,8 @@
             <div class="fin-ratio-row">
                 <div style="flex:2" class="fin-ratio-label">{{ ratio.label }}</div>
                 <div style="flex:2" class="fin-ratio-formula">{{ ratio.formula }}</div>
-                <div style="flex:1" class="fin-ratio-value">{{ ratio.period|format_ratio:ratio.type }}</div>
-                <div style="flex:1" class="fin-ratio-value fin-old">{{ ratio.year|format_ratio:ratio.type }}</div>
+                <div style="flex:1" class="fin-ratio-value{% if ratio.period is None %} fin-ratio-na{% endif %}" title="{{ ratio.unavailable_reason|default:'' }}">{{ ratio|format_ratio_field:"period" }}</div>
+                <div style="flex:1" class="fin-ratio-value fin-old{% if ratio.year is None %} fin-ratio-na{% endif %}" title="{{ ratio.unavailable_reason|default:'' }}">{{ ratio|format_ratio_field:"year" }}</div>
             </div>
             {% endfor %}
         </div>

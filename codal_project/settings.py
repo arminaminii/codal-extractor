@@ -105,7 +105,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # تنظیمات اختصاصی کدال
 CODAL_REQUEST_TIMEOUT = 30  # ثانیه
-FINANCIAL_REPORT_CACHE_TIMEOUT = 900  # ۱۵ دقیقه
+CODAL_SHEET_FETCH_WORKERS = 3
+FINANCIAL_REPORT_CACHE_TIMEOUT = 86400  # لینک هر گزارش ثابت است؛ کش ۲۴ ساعته
 
 # Logging
 LOGGING = {

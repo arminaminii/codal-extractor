@@ -1,8 +1,11 @@
 import json
 import hashlib
+import html as html_module
 import logging
 import re
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 
 import jdatetime
@@ -14,6 +17,9 @@ from django.db import models as db_models
 from .models import Announcement, Company
 
 logger = logging.getLogger(__name__)
+
+_financial_report_locks: dict[str, threading.Lock] = {}
+_financial_report_locks_guard = threading.Lock()
 
 # --- Codal API URL ---
 CODAL_SEARCH_URL = "https://search.codal.ir/api/search/v2/q"
@@ -641,6 +647,8 @@ CONCEPT_ALIASES = {
         "جریان نقد حاصل از فعاليت‌هاي عملياتي",
         "جریان نقد حاصل از فعالیت های عملیاتی",
         "خالص جریان نقد حاصل از فعالیت‌های عملیاتی",
+        "جریان خالص ورود (خروج) نقد حاصل از فعالیت‌های عملیاتی",
+        "جریان خالص ورود (خروج) نقد حاصل از فعاليت‌هاي عملياتي",
         "Operating Cash Flow", "Cash from Operating Activities",
     ],
     "net_premium": [
@@ -843,6 +851,127 @@ def _build_sheet_urls(base_url: str, max_sheet_id: int = 5) -> list[tuple[int, s
     return results
 
 
+def _build_urls_for_sheet_ids(
+    base_url: str, sheet_ids: list[int]
+) -> list[tuple[int, str]]:
+    """Build report URLs for sheet identifiers discovered from Codal itself."""
+    from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
+    parsed = urlparse(base_url)
+    params = parse_qs(parsed.query, keep_blank_values=True)
+    results = []
+    for sid in sheet_ids:
+        new_params = {key: values[0] for key, values in params.items()}
+        new_params.pop("SheetId", None)
+        new_params["sheetId"] = str(sid)
+        results.append(
+            (sid, urlunparse(parsed._replace(query=urlencode(new_params))))
+        )
+    return results
+
+
+def _discover_primary_sheet_ids(page_html: str) -> list[int]:
+    """Read the authoritative financial-statement IDs from Codal's selector.
+
+    Codal does not use a stable 0..N sequence. Consolidated statements commonly
+    use IDs such as 13, 14, and 15 while standalone statements use 1, 0, and 9.
+    The page title determines which group belongs to the requested disclosure.
+    """
+    select_match = re.search(
+        r'<select[^>]+(?:id|name)=["\'][^"\']*ddlTable["\'][^>]*>(.*?)</select>',
+        page_html,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not select_match:
+        return []
+
+    options = []
+    for value, raw_label in re.findall(
+        r'<option[^>]*value=["\']?(\d+)["\']?[^>]*>(.*?)(?=</option>|<option|$)',
+        select_match.group(1),
+        flags=re.IGNORECASE | re.DOTALL,
+    ):
+        label = html_module.unescape(re.sub(r"<[^>]+>", " ", raw_label))
+        label = re.sub(r"\s+", " ", label).strip()
+        options.append((int(value), label))
+
+    if not options:
+        return []
+
+    title_match = re.search(
+        r"<title[^>]*>(.*?)</title>", page_html, flags=re.IGNORECASE | re.DOTALL
+    )
+    page_title = html_module.unescape(title_match.group(1)) if title_match else ""
+    wants_consolidated = "تلفیقی" in page_title
+    has_consolidated = any("تلفیقی" in label for _, label in options)
+    has_standalone = any("تلفیقی" not in label for _, label in options)
+
+    if has_consolidated and has_standalone:
+        options = [
+            (sid, label)
+            for sid, label in options
+            if ("تلفیقی" in label) == wants_consolidated
+        ]
+
+    def is_primary_statement(label: str) -> bool:
+        compact = re.sub(r"\s+", " ", label)
+        return (
+            ("صورت سود و زیان" in compact and "جامع" not in compact)
+            or "صورت وضعیت مالی" in compact
+            or "صورت جریان" in compact
+        )
+
+    primary_ids = [sid for sid, label in options if is_primary_statement(label)]
+    return primary_ids
+
+
+def _fetch_sheet_datasources(
+    sheet_urls: list[tuple[int, str]], timeout: int
+) -> tuple[list[dict], str | None]:
+    """Fetch Codal sheet variants concurrently while preserving sheet order."""
+    if not sheet_urls:
+        return [], None
+
+    def fetch_one(item):
+        sid, url = item
+        try:
+            html = _fetch_html(url, timeout)
+            return sid, _try_extract_datasource_from_html(html, url), html, None
+        except ConnectionError as exc:
+            return sid, None, None, exc
+
+    workers = min(
+        len(sheet_urls),
+        max(1, int(getattr(settings, "CODAL_SHEET_FETCH_WORKERS", 3))),
+    )
+    results = {}
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="codal-sheet") as pool:
+        futures = {pool.submit(fetch_one, item): item[0] for item in sheet_urls}
+        for future in as_completed(futures):
+            sid, datasource, html, error = future.result()
+            results[sid] = (datasource, html, error)
+
+    found_datasources = []
+    last_html = None
+    for sid in sorted(results):
+        datasource, html, error = results[sid]
+        if html is not None:
+            last_html = html
+        if error is not None:
+            logger.warning("Connection error for sheetId=%d: %s", sid, error)
+        elif datasource:
+            logger.info(
+                "✅ sheetId=%d: got datasource with %d sheet(s)",
+                sid,
+                len(datasource.get("sheets", [])),
+            )
+            found_datasources.append(datasource)
+        else:
+            logger.info("❌ sheetId=%d: no datasource", sid)
+
+    return found_datasources, last_html
+
+
 def _merge_datasources(datasources: list[dict]) -> dict:
     """
     ادغام چند datasource (از sheetIdهای مختلف) به یک datasource واحد.
@@ -924,27 +1053,28 @@ def extract_datasource(report_url: str) -> dict:
     # ═══════════════════════════════════════════════════════════════════════
     if is_decision_page:
         logger.info(
-            "Decision.aspx detected. Fetching all sheetIds and merging..."
+            "Decision.aspx detected. Discovering financial sheet IDs..."
         )
+        # If the caller already selected a sheet, preserve that exact sheet.
+        # Otherwise fetch the base page once and read the real IDs from its
+        # ddlTable selector instead of guessing 0..5.
         sheet_urls = _build_sheet_urls(full_url, max_sheet_id=5)
-
-        found_datasources = []
-        last_html = None
-
-        for sid, url in sheet_urls:
+        if len(sheet_urls) > 1:
             try:
-                html = _fetch_html(url, timeout)
-                last_html = html
-            except ConnectionError as e:
-                logger.warning("Connection error for sheetId=%d: %s", sid, e)
-                continue
-
-            ds = _try_extract_datasource_from_html(html, url)
-            if ds:
-                logger.info("✅ sheetId=%d: got datasource with %d sheet(s)", sid, len(ds.get("sheets", [])))
-                found_datasources.append(ds)
+                index_html = _fetch_html(full_url, timeout)
+            except ConnectionError as exc:
+                logger.warning("Could not load Codal sheet selector: %s", exc)
+                index_html = ""
+            discovered_ids = _discover_primary_sheet_ids(index_html)
+            if discovered_ids:
+                logger.info("Discovered primary Codal sheet IDs: %s", discovered_ids)
+                sheet_urls = _build_urls_for_sheet_ids(full_url, discovered_ids)
             else:
-                logger.info("❌ sheetId=%d: no datasource", sid)
+                logger.warning(
+                    "Codal sheet selector was unavailable; falling back to IDs 0..5"
+                )
+
+        found_datasources, last_html = _fetch_sheet_datasources(sheet_urls, timeout)
 
         if found_datasources:
             merged = _merge_datasources(found_datasources)
@@ -983,17 +1113,9 @@ def extract_datasource(report_url: str) -> dict:
     logger.info("No datasource on original URL. Trying sheetIds...")
     sheet_urls = _build_sheet_urls(full_url, max_sheet_id=5)
 
-    found_datasources = []
-    for sid, url in sheet_urls:
-        try:
-            html = _fetch_html(url, timeout)
-        except ConnectionError as e:
-            logger.warning("Connection error for sheetId=%d: %s", sid, e)
-            continue
-
-        ds = _try_extract_datasource_from_html(html, url)
-        if ds:
-            found_datasources.append(ds)
+    found_datasources, fallback_html = _fetch_sheet_datasources(sheet_urls, timeout)
+    if fallback_html is not None:
+        html = fallback_html
 
     if found_datasources:
         return _merge_datasources(found_datasources)
@@ -1533,6 +1655,24 @@ def _average_balance(current, previous):
     return (float(current) + float(previous)) / 2
 
 
+def _safe_divide_positive_denominator(numerator, denominator) -> float | None:
+    """Divide only when a balance denominator is positive and meaningful."""
+    if denominator is None or float(denominator) <= 0:
+        return None
+    return _safe_divide(numerator, denominator)
+
+
+def _average_positive_balance(current, previous):
+    """Average balances without producing misleading returns across insolvency."""
+    if current is None or float(current) <= 0:
+        return None
+    if previous is None:
+        return float(current)
+    if float(previous) <= 0:
+        return None
+    return (float(current) + float(previous)) / 2
+
+
 def calculate_financial_ratios(parsed_report: dict) -> dict:
     """
     محاسبه ۹ شاخص مالی کلیدی.
@@ -1580,7 +1720,7 @@ def calculate_financial_ratios(parsed_report: dict) -> dict:
     if gross_profit_y is None:
         gross_profit_y = _profit_after_expense(revenue_y, cogs_y)
 
-    average_equity_p = _average_balance(equity_p, equity_y)
+    average_equity_p = _average_positive_balance(equity_p, equity_y)
     average_assets_p = _average_balance(total_assets_p, total_assets_y)
 
     ratios = {
@@ -1622,15 +1762,15 @@ def calculate_financial_ratios(parsed_report: dict) -> dict:
         "debt_to_equity": {
             "label": "نسبت بدهی به حقوق صاحبان سهام",
             "formula": "کل بدهی ÷ حقوق صاحبان سهام",
-            "period": _safe_divide(total_liabilities_p, equity_p),
-            "year": _safe_divide(total_liabilities_y, equity_y),
+            "period": _safe_divide_positive_denominator(total_liabilities_p, equity_p),
+            "year": _safe_divide_positive_denominator(total_liabilities_y, equity_y),
             "type": "ratio",
         },
         "roe": {
             "label": "بازده حقوق صاحبان سهام (ROE)",
             "formula": "سود خالص ÷ میانگین حقوق صاحبان سهام",
             "period": _safe_divide(net_income_p, average_equity_p),
-            "year": _safe_divide(net_income_y, equity_y),
+            "year": _safe_divide_positive_denominator(net_income_y, equity_y),
             "type": "percent",
             "annualized": False,
         },
@@ -1668,6 +1808,26 @@ def calculate_financial_ratios(parsed_report: dict) -> dict:
     parsed_report["analysis_profile"] = "insurance" if is_insurance else "general"
 
     if is_insurance:
+        ratios["gross_margin"].update({
+            "period": None,
+            "year": None,
+            "applicable": False,
+            "unavailable_label": "نامرتبط با صنعت بیمه",
+            "unavailable_reason": (
+                "در صورت سود و زیان بیمه، بهای تمام‌شده و سود ناخالص "
+                "به شکل شرکت‌های تولیدی ارائه نمی‌شود."
+            ),
+        })
+        ratios["current_ratio"].update({
+            "period": None,
+            "year": None,
+            "applicable": False,
+            "unavailable_label": "نامرتبط با صنعت بیمه",
+            "unavailable_reason": (
+                "صورت وضعیت مالی بیمه دارایی‌ها و بدهی‌ها را به جاری و "
+                "غیرجاری تفکیک نمی‌کند."
+            ),
+        })
         ratios["net_claims_paid_ratio"] = {
             "label": "نسبت خسارت پرداختی خالص",
             "formula": "قدر مطلق خسارت و مزایای پرداختی خالص ÷ حق بیمه خالص",
@@ -1690,6 +1850,12 @@ def calculate_financial_ratios(parsed_report: dict) -> dict:
             "type": "percent",
             "category": "insurance",
         }
+
+    if cashflow_sheet is None:
+        ratios["cashflow_quality"].update({
+            "unavailable_label": "داده ارائه نشده",
+            "unavailable_reason": "صورت جریان وجوه نقد در این گزارش وجود ندارد.",
+        })
 
     for key, ratio in ratios.items():
         ratio.setdefault("category", "general")
@@ -1720,21 +1886,31 @@ def get_financial_report(report_url: str) -> dict:
     if cached_result is not None:
         return cached_result
 
-    datasource = extract_datasource(report_url)
-    parsed = parse_financial_report(datasource)
-    ratios = calculate_financial_ratios(parsed)
+    with _financial_report_locks_guard:
+        report_lock = _financial_report_locks.setdefault(cache_key, threading.Lock())
 
-    result = {
-        "report": parsed,
-        "ratios": ratios,
-        "dashboard": {
-            "profile": parsed.get("analysis_profile", "general"),
-            "metrics": list(ratios.values()),
-        },
-    }
-    cache.set(
-        cache_key,
-        result,
-        getattr(settings, "FINANCIAL_REPORT_CACHE_TIMEOUT", 900),
-    )
-    return result
+    # Prevent duplicate clicks/requests from launching the same Codal requests
+    # at once. Re-check the shared cache after acquiring the lock.
+    with report_lock:
+        cached_result = cache.get(cache_key)
+        if cached_result is not None:
+            return cached_result
+
+        datasource = extract_datasource(report_url)
+        parsed = parse_financial_report(datasource)
+        ratios = calculate_financial_ratios(parsed)
+
+        result = {
+            "report": parsed,
+            "ratios": ratios,
+            "dashboard": {
+                "profile": parsed.get("analysis_profile", "general"),
+                "metrics": list(ratios.values()),
+            },
+        }
+        cache.set(
+            cache_key,
+            result,
+            getattr(settings, "FINANCIAL_REPORT_CACHE_TIMEOUT", 86400),
+        )
+        return result

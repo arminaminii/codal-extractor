@@ -2,13 +2,14 @@ from django.test import SimpleTestCase
 
 from .services import (
     _find_value_in_sheet,
+    _discover_primary_sheet_ids,
     _parse_cell_value,
     _parse_codal_date,
     _profit_after_expense,
     calculate_financial_ratios,
     parse_financial_report,
 )
-from .templatetags.codal_tags import format_num
+from .templatetags.codal_tags import format_num, format_ratio, format_ratio_field
 
 
 def cell(address, column, value, row_code=None):
@@ -45,11 +46,44 @@ class CodalDateTests(SimpleTestCase):
         self.assertEqual(_parse_cell_value("۱٬۲۳۴٬۵۶۷"), 1234567.0)
 
     def test_real_zero_is_rendered_while_missing_value_is_dash(self):
-        self.assertEqual(format_num(0), "0")
+        self.assertEqual(format_num(0), "۰")
         self.assertEqual(format_num(None), "—")
+
+    def test_financial_numbers_are_rendered_with_persian_digits(self):
+        self.assertEqual(format_num(1234567), "۱٬۲۳۴٬۵۶۷")
+        self.assertEqual(format_ratio(0.123, "percent"), "۱۲٫۳٪")
+        self.assertEqual(format_ratio(1.25, "ratio"), "۱٫۲۵")
 
 
 class FinancialParserTests(SimpleTestCase):
+    def test_sheet_ids_are_discovered_from_codal_selector(self):
+        page = """
+        <html><head><title>صورت‌های مالی تلفیقی ۱۲ ماهه</title></head><body>
+        <select name="ctl00$ddlTable" id="ddlTable">
+          <option value="13">صورت سود و زیان تلفیقی</option>
+          <option value="1097">صورت سود و زیان جامع تلفیقی</option>
+          <option value="14">صورت وضعیت مالی تلفیقی</option>
+          <option value="15">صورت جریان های نقدی تلفیقی</option>
+          <option value="1">صورت سود و زیان</option>
+          <option value="0">صورت وضعیت مالی</option>
+          <option value="9">صورت جریان های نقدی</option>
+        </select></body></html>
+        """
+        self.assertEqual(_discover_primary_sheet_ids(page), [13, 14, 15])
+
+    def test_standalone_report_does_not_mix_consolidated_sheets(self):
+        page = """
+        <html><head><title>صورت‌های مالی ۱۲ ماهه</title></head><body>
+        <select id="ddlTable">
+          <option value="13">صورت سود و زیان تلفیقی</option>
+          <option value="14">صورت وضعیت مالی تلفیقی</option>
+          <option value="1">صورت سود و زیان</option>
+          <option value="0">صورت وضعیت مالی</option>
+          <option value="9">صورت جریان های نقدی</option>
+        </select></body></html>
+        """
+        self.assertEqual(_discover_primary_sheet_ids(page), [1, 0, 9])
+
     def test_dual_panel_insurance_balance_sheet_keeps_both_halves(self):
         cells = [
             cell("A1", 1, "دارایی‌ها"), cell("B1", 2, "پایان عملکرد 1404/12/29"),
@@ -144,6 +178,18 @@ class RatioTests(SimpleTestCase):
         self.assertEqual(_profit_after_expense(1000, -700), 300)
         self.assertEqual(_profit_after_expense(1000, 700), 300)
 
+    def test_official_codal_operating_cashflow_caption_is_matched(self):
+        sheet = {"tables": [{"rows": [{
+            "concept": "جریان خالص ورود (خروج) نقد حاصل از فعالیت‌های عملیاتی",
+            "period_value": 1555190,
+            "year_value": 1769198,
+            "is_header": False,
+        }]}]}
+        self.assertEqual(
+            _find_value_in_sheet(sheet, "operating_cashflow"),
+            1555190,
+        )
+
     def test_insurance_ratios_are_exposed_for_dashboard(self):
         parsed = {"sheets": [
             {"category": "income", "tables": [{"rows": [
@@ -167,3 +213,29 @@ class RatioTests(SimpleTestCase):
         self.assertAlmostEqual(ratios["roa"]["period"], 100 / 900)
         self.assertTrue(ratios["net_claims_paid_ratio"]["available"])
         self.assertEqual(ratios["net_claims_paid_ratio"]["category"], "insurance")
+        self.assertFalse(ratios["gross_margin"]["applicable"])
+        self.assertEqual(
+            format_ratio_field(ratios["gross_margin"], "period"),
+            "نامرتبط با صنعت بیمه",
+        )
+        self.assertEqual(
+            format_ratio_field(ratios["cashflow_quality"], "period"),
+            "داده ارائه نشده",
+        )
+
+    def test_roe_is_not_reported_when_equity_crosses_zero(self):
+        parsed = {"sheets": [
+            {"category": "income", "tables": [{"rows": [
+                {"concept": "فروش", "period_value": 500, "year_value": 400},
+                {"concept": "سود خالص", "period_value": 100, "year_value": -20},
+            ]}]},
+            {"category": "balance", "tables": [{"rows": [
+                {"concept": "جمع دارایی ها", "period_value": 1000, "year_value": 900},
+                {"concept": "جمع بدهی ها", "period_value": 800, "year_value": 950},
+                {"concept": "جمع حقوق مالکانه", "period_value": 200, "year_value": -50},
+            ]}]},
+        ]}
+        ratios = calculate_financial_ratios(parsed)
+        self.assertIsNone(ratios["roe"]["period"])
+        self.assertIsNone(ratios["roe"]["year"])
+        self.assertIsNone(ratios["debt_to_equity"]["year"])

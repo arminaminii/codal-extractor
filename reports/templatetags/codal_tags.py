@@ -295,8 +295,8 @@ def format_num(value):
     try:
         num = float(value)
         if num == 0:
-            return "0"
-        return f"{num:,.0f}".replace(",", "٬")
+            return _to_persian_digits("0")
+        return _to_persian_digits(f"{num:,.0f}".replace(",", "٬"))
     except (ValueError, TypeError):
         return "—"
 
@@ -309,8 +309,34 @@ def format_ratio(value, ratio_type="percent"):
     try:
         num = float(value)
         if ratio_type == "ratio":
-            return f"{num:.2f}"
+            return _to_persian_digits(f"{num:.2f}".replace(".", "٫"))
         else:
-            return f"{num * 100:.1f}%"
+            return _to_persian_digits(f"{num * 100:.1f}".replace(".", "٫") + "٪")
     except (ValueError, TypeError):
         return "—"
+
+
+_PERSIAN_DIGIT_MAP = str.maketrans("0123456789-", "۰۱۲۳۴۵۶۷۸۹−")
+
+
+def _to_persian_digits(value):
+    return str(value).translate(_PERSIAN_DIGIT_MAP)
+
+
+@register.filter
+def fa_digits(value):
+    """Convert Latin digits in metadata and labels to Persian digits."""
+    if value is None:
+        return ""
+    return _to_persian_digits(value)
+
+
+@register.filter
+def format_ratio_field(ratio, field):
+    """Render a ratio value or an explicit, honest unavailability status."""
+    if not isinstance(ratio, dict):
+        return "—"
+    value = ratio.get(field)
+    if value is None:
+        return ratio.get("unavailable_label", "داده کافی نیست")
+    return format_ratio(value, ratio.get("type", "percent"))
