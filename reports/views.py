@@ -1,6 +1,7 @@
 import logging
 
 import requests
+from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -136,13 +137,20 @@ def reports(request, symbol):
     else:
         categorized_announcements = all_categorized
 
+    total_results = len(categorized_announcements)
+    paginator = Paginator(categorized_announcements, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    visible_announcements = list(page_obj.object_list)
+
     context = {
         "symbol": symbol,
         "company_info": company_info,
-        "announcements": categorized_announcements,
+        "announcements": visible_announcements,
+        "page_obj": page_obj,
+        "page_start": page_obj.start_index() if total_results else 0,
         "categories": categories,
         "category_filter": category_filter,
-        "total_results": len(categorized_announcements),
+        "total_results": total_results,
         "fetch_error": fetch_error,
     }
 

@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 _financial_report_locks: dict[str, threading.Lock] = {}
 _financial_report_locks_guard = threading.Lock()
+_announcement_fetch_locks: dict[str, threading.Lock] = {}
+_announcement_fetch_locks_guard = threading.Lock()
 
 # --- Codal API URL ---
 CODAL_SEARCH_URL = "https://search.codal.ir/api/search/v2/q"
@@ -287,21 +289,37 @@ def get_or_fetch_announcements(
         )
         return list(existing)
 
-    logger.info(
-        "No records in DB. Fetching from Codal for symbol: %s", symbol
-    )
+    with _announcement_fetch_locks_guard:
+        fetch_lock = _announcement_fetch_locks.setdefault(symbol, threading.Lock())
 
-    try:
-        announcements_data = fetch_announcements_from_codal(symbol)
-    except requests.RequestException as e:
-        logger.error("Error connecting to Codal API: %s", str(e))
-        raise
+    # Browser navigation can issue duplicate requests. Only one request should
+    # populate a missing symbol; waiting requests re-check the database.
+    with fetch_lock:
+        existing = Announcement.objects.filter(symbol=symbol).order_by("-publish_date")
+        if not force_refresh and existing.exists():
+            logger.info(
+                "Records for %s were populated by another request; reusing them.",
+                symbol,
+            )
+            return list(existing)
 
-    save_announcements_to_db(announcements_data)
+        logger.info(
+            "%s records from Codal for symbol: %s",
+            "Refreshing" if force_refresh else "Fetching missing",
+            symbol,
+        )
 
-    return list(
-        Announcement.objects.filter(symbol=symbol).order_by("-publish_date")
-    )
+        try:
+            announcements_data = fetch_announcements_from_codal(symbol)
+        except requests.RequestException as e:
+            logger.error("Error connecting to Codal API: %s", str(e))
+            raise
+
+        save_announcements_to_db(announcements_data)
+
+        return list(
+            Announcement.objects.filter(symbol=symbol).order_by("-publish_date")
+        )
 
 
 def categorize_letter_code(letter_code: str) -> dict:
