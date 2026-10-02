@@ -3,23 +3,23 @@ Django settings for codal_project project.
 """
 
 import os
+import secrets
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-p8e@w7+efi3g6!-)z5svtu(_*2e&bi!aoim5la#)4ntbm_!-x%",
-)
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or secrets.token_urlsafe(50)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
+DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = os.environ.get(
-    "DJANGO_ALLOWED_HOSTS", "*"
-).split(",")
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+    if host.strip()
+]
 
 # Application definition
 
@@ -105,6 +105,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # تنظیمات اختصاصی کدال
 CODAL_REQUEST_TIMEOUT = 30  # ثانیه
+FINANCIAL_REPORT_CACHE_TIMEOUT = 900  # ۱۵ دقیقه
 
 # Logging
 LOGGING = {

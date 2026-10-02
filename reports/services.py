@@ -1,11 +1,14 @@
 import json
+import hashlib
 import logging
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
+import jdatetime
 import requests
 from django.conf import settings
+from django.core.cache import cache
 from django.db import models as db_models
 
 from .models import Announcement, Company
@@ -56,13 +59,25 @@ HEADERS = {
 
 
 def _parse_codal_date(date_str: str) -> datetime | None:
-    """Parse Codal /Date(ms)/ format into a datetime object."""
+    """Parse both legacy millisecond and current Jalali Codal dates."""
     if not date_str:
         return None
     match = re.search(r"\((\d+)", date_str)
     if match:
         timestamp_ms = int(match.group(1))
         return datetime.fromtimestamp(timestamp_ms / 1000, tz=timezone.utc)
+
+    normalized = str(date_str).translate(
+        str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+    )
+    for date_format in ("%Y/%m/%d %H:%M:%S", "%Y/%m/%d"):
+        try:
+            jalali_value = jdatetime.datetime.strptime(normalized, date_format)
+            return jalali_value.togregorian().replace(
+                tzinfo=timezone(timedelta(hours=3, minutes=30))
+            )
+        except ValueError:
+            continue
     return None
 
 
@@ -553,6 +568,7 @@ CONCEPT_ALIASES = {
     "revenue": [
         "درآمدهای عملیاتی", "درآمدهاي عملياتي",
         "درآمد عملیاتی",
+        "درآمدهای بیمه ای", "درآمدهای بیمه‌ای",
         "فروش خالص", "درآمد فروش",
         "بهای فروش کالا و خدمات",
         # ⚠️ "فروش" حذف شد — ۴ کاراکتر و داخل "کارمزد فروش" و "هزینه فروش" match می‌شود
@@ -616,6 +632,7 @@ CONCEPT_ALIASES = {
     ],
     "total_equity": [
         "جمع حقوق صاحبان سهام", "حقوق صاحبان سهام",
+        "جمع حقوق مالکانه", "حقوق مالکانه",
         "حقوق صاحبان سهام (بدون سود تقسیمی)",
         "Total Equity", "Equity", "Shareholders' Equity",
     ],
@@ -625,6 +642,16 @@ CONCEPT_ALIASES = {
         "جریان نقد حاصل از فعالیت های عملیاتی",
         "خالص جریان نقد حاصل از فعالیت‌های عملیاتی",
         "Operating Cash Flow", "Cash from Operating Activities",
+    ],
+    "net_premium": [
+        "حق بیمه خالص(سهم نگهداری)", "حق بیمه خالص (سهم نگهداری)",
+    ],
+    "net_claims_paid": [
+        "خسارت و مزایای پرداختی خالص",
+    ],
+    "insurance_investment_income": [
+        "درآمد سرمایه گذاری از محل منابع بیمه ای",
+        "درآمد سرمایه‌گذاری از محل منابع بیمه‌ای",
     ],
 }
 
@@ -1027,12 +1054,14 @@ def _parse_cell_value(val) -> float | None:
 
     # اگر رشته است
     if isinstance(val, str):
-        s = val.strip()
+        s = val.strip().translate(
+            str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
+        )
         if not s or s in ('-', '--', '...', '۰', 'nan', 'NaN', 'null'):
             return None
 
         # حذف کامای جداکننده هزارگان
-        s = s.replace(',', '')
+        s = s.replace(',', '').replace('٬', '').replace('،', '')
 
         # عدد منفی در پرانتز: (12345) → -12345
         if s.startswith('(') and s.endswith(')'):
@@ -1079,29 +1108,124 @@ def _get_row_key(cell: dict) -> str | None:
     return None
 
 
-def _is_label_cell(cell: dict, has_address: bool) -> bool:
-    """
-    آیا این سلول سلول توضیحات (شرح) است؟
-    
-    وقتی سلول‌ها address دارند → ستون A = شرح
-    وقتی columnCode دارند → columnCode == 1 = شرح
-    """
-    if has_address:
-        addr = cell.get("address", "")
-        m = re.match(r'([A-Z]+)\d+', addr) if addr else None
-        if m:
-            return m.group(1) == "A"
+def _excel_column_number(address: str) -> int | None:
+    match = re.match(r"([A-Z]+)\d+", address or "", re.IGNORECASE)
+    if not match:
+        return None
+    result = 0
+    for character in match.group(1).upper():
+        result = result * 26 + ord(character) - ord("A") + 1
+    return result
 
-    col_code = cell.get("columnCode")
-    if col_code is not None:
-        return col_code == 1
 
-    # Fallback: اگر value رشته‌ای طولانی باشد و هیچ عدد نباشد → احتمالاً شرح است
-    val = cell.get("value", "")
-    if isinstance(val, str) and len(val) > 2 and not re.search(r'\d', val):
-        return True
+def _cell_column_key(cell: dict) -> int | None:
+    """Return Codal's semantic columnCode, falling back to Excel address."""
+    column_code = cell.get("columnCode")
+    try:
+        if column_code is not None:
+            return int(column_code)
+    except (TypeError, ValueError):
+        pass
+    return _excel_column_number(cell.get("address", ""))
 
-    return False
+
+def _column_profiles(cells: list[dict]) -> dict[int, dict]:
+    profiles: dict[int, dict] = {}
+    for cell in cells:
+        column = _cell_column_key(cell)
+        if column is None:
+            continue
+        profile = profiles.setdefault(
+            column,
+            {"cells": [], "numeric": 0, "nonzero": 0, "text": 0, "texts": []},
+        )
+        profile["cells"].append(cell)
+        raw_value = cell.get("value")
+        numeric_value = _parse_cell_value(raw_value)
+        if numeric_value is not None:
+            profile["numeric"] += 1
+            if numeric_value != 0:
+                profile["nonzero"] += 1
+        elif str(raw_value or "").strip():
+            raw_text = str(raw_value).strip()
+            if raw_text.lower() not in {
+                "-infinity", "+infinity", "infinity", "nan", "null", "-", "--"
+            }:
+                profile["text"] += 1
+                profile["texts"].append(raw_text)
+    return profiles
+
+
+def _detect_label_columns(profiles: dict[int, dict]) -> list[int]:
+    """Detect one or more description columns in single- and dual-panel tables."""
+    label_columns = []
+    for column, profile in sorted(profiles.items()):
+        if profile["text"] >= 2 and profile["text"] > profile["numeric"] * 2:
+            label_columns.append(column)
+    if not label_columns and profiles:
+        label_columns.append(min(profiles))
+    return label_columns
+
+
+def _select_value_columns(
+    profiles: dict[int, dict], panel_columns: list[int]
+) -> tuple[int | None, int | None]:
+    """Choose current and comparative value columns inside one visual panel."""
+    candidates = []
+    for column in panel_columns:
+        profile = profiles[column]
+        header_text = " ".join(profile["texts"][:3])
+        if "درصد" in header_text or "%" in header_text:
+            continue
+        if profile["numeric"]:
+            candidates.append(column)
+
+    if not candidates:
+        return None, None
+
+    current_column = candidates[0]
+    comparison_candidates = candidates[1:]
+    if not comparison_candidates:
+        return current_column, None
+
+    # Some Codal templates include an all-zero placeholder comparison column.
+    # Prefer the populated comparison; on ties retain the nearest column.
+    comparison_column = max(
+        comparison_candidates,
+        key=lambda column: (
+            profiles[column]["nonzero"],
+            profiles[column]["numeric"],
+            -column,
+        ),
+    )
+    return current_column, comparison_column
+
+
+def _extract_financial_cell_value(cell: dict | None, comparative: bool) -> float | None:
+    if not cell:
+        return None
+    preferred_field = "yearEndToDate" if comparative else "periodEndToDate"
+    value = _parse_cell_value(cell.get(preferred_field))
+    if value is None:
+        value = _parse_cell_value(cell.get("value"))
+    return value
+
+
+def _is_structural_header(concept: str, period_value, year_value) -> bool:
+    normalized = _normalize_for_match(concept)
+    known_headers = {
+        "شرح",
+        "داراییها",
+        "بدهیها",
+        "حقوق مالکانه",
+        "بدهیها و حقوق مالکانه",
+        "داراییها و بدهیها",
+        "صورت وضعیت مالی",
+        "صورت سود و زیان",
+    }
+    return normalized in known_headers or (
+        period_value is None and year_value is None
+    )
 
 
 def parse_financial_report(datasource: dict) -> dict:
@@ -1148,15 +1272,9 @@ def parse_financial_report(datasource: dict) -> dict:
                 sheet_data["tables"].append(table_data)
                 continue
             
-            # بررسی اینکه آیا سلول‌ها از address استفاده می‌کنند
-            has_address = any(
-                bool(re.match(r'[A-Z]+\d+', c.get("address", "")))
-                for c in cells if c.get("address")
-            )
-            
-            # بررسی اینکه آیا سلول‌ها از columnCode استفاده می‌کنند
+            has_address = any(_excel_column_number(c.get("address", "")) for c in cells)
             has_column_code = any(c.get("columnCode") is not None for c in cells)
-            
+
             if not has_address and not has_column_code:
                 logger.warning(
                     "Table has %d cells but no address or columnCode. "
@@ -1167,104 +1285,112 @@ def parse_financial_report(datasource: dict) -> dict:
                 sheet_data["tables"].append(table_data)
                 continue
             
-            # گروه‌بندی سلول‌ها بر اساس ردیف
-            rows_map: dict[str, dict] = {}
-            
+            # Physical address rows are essential for split insurance statements:
+            # their right-hand panel has a second label column (usually E/cc=5).
+            rows_map: dict[str, dict[int, dict]] = {}
             for cell in cells:
                 row_key = _get_row_key(cell)
-                if row_key is None:
+                column_key = _cell_column_key(cell)
+                if row_key is None or column_key is None:
                     continue
-                
-                if row_key not in rows_map:
-                    rows_map[row_key] = {
-                        "concept": "",
-                        "period_value": None,
-                        "year_value": None,
-                        "row_type": (
-                            cell.get("rowTypeName", "")
-                            or cell.get("row_type_name", "")
-                            or ""
-                        ),
-                        "indent": 0,
-                    }
-                
-                if _is_label_cell(cell, has_address):
-                    # سلول شرح → نام مفهوم را استخراج کن
-                    concept_text = (
-                        cell.get("financialConcept")
-                        or cell.get("financial_concept")
-                        or cell.get("value")
-                        or ""
-                    )
-                    if concept_text:
-                        rows_map[row_key]["concept"] = _normalize_persian(str(concept_text))
-                else:
-                    # سلول داده‌ای → استخراج عدد
-                    #
-                    # ⚠️ دو فرمت datasource در کدال وجود دارد:
-                    #
-                    # فرمت قدیمی: periodEndToDate/yearEndToDate = عدد مالی
-                    #   value = متن نمایشی (ممکنه کاما‌دار باشه)
-                    #
-                    # فرمت V6 (جدید): periodEndToDate/yearEndToDate = تاریخ!
-                    #   مثل '1404/06/31' — value = عدد مالی واقعی
-                    #
-                    # تشخیص: اگر periodEndToDate قابل parse به عدد نباشه،
-                    # از value استفاده کن.
-                    
-                    cc = cell.get("columnCode")
-                    raw_value = cell.get("value")
-                    
-                    if cc == 2:
-                        # ستون دوره جاری
-                        # V6 جدید: value = عدد واقعی، periodEndToDate = تاریخ
-                        # قدیمی: periodEndToDate = عدد، value = متن نمایشی
-                        val = _parse_cell_value(cell.get("periodEndToDate"))
-                        if val is None:
-                            val = _parse_cell_value(raw_value)
-                        if val is not None:
-                            rows_map[row_key]["period_value"] = val
-                    elif cc == 3:
-                        # ستون سال قبل / دوره مشابه
-                        val = _parse_cell_value(cell.get("yearEndToDate"))
-                        if val is None:
-                            val = _parse_cell_value(raw_value)
-                        if val is not None:
-                            rows_map[row_key]["year_value"] = val
-                    # cc=1 handled by _is_label_cell
-                    # cc>=4 (ستون‌های اضافی مثل سال مالی قبل) نادیده گرفته می‌شوند
-            
-            # محاسبه indent بر اساس نوع ردیف
-            for row_key in rows_map:
-                rt = rows_map[row_key]["row_type"]
-                if rt in ("Header", "Title", "GroupHeader"):
-                    rows_map[row_key]["indent"] = 0
-                elif rt == "SubGroupHeader":
-                    rows_map[row_key]["indent"] = 1
-                else:
-                    rows_map[row_key]["indent"] = 2
-            
-            # مرتب‌سازی بر اساس شماره ردیف (عددی اگر ممکن باشد)
+                rows_map.setdefault(row_key, {})[column_key] = cell
+
+            profiles = _column_profiles(cells)
+            label_columns = _detect_label_columns(profiles)
+            logical_rows = []
+
             def _sort_key(k):
                 try:
                     return (0, int(k))
                 except (ValueError, TypeError):
                     return (1, k)
-            
-            for row_key in sorted(rows_map.keys(), key=_sort_key):
-                table_data["rows"].append(rows_map[row_key])
-            
+
+            for panel_index, label_column in enumerate(label_columns):
+                next_label = (
+                    label_columns[panel_index + 1]
+                    if panel_index + 1 < len(label_columns)
+                    else None
+                )
+                panel_columns = [
+                    column
+                    for column in sorted(profiles)
+                    if column > label_column
+                    and (next_label is None or column < next_label)
+                ]
+                current_column, comparison_column = _select_value_columns(
+                    profiles, panel_columns
+                )
+
+                for row_key in sorted(rows_map, key=_sort_key):
+                    row_cells = rows_map[row_key]
+                    label_cell = row_cells.get(label_column)
+                    if not label_cell:
+                        continue
+                    concept_text = (
+                        label_cell.get("financialConcept")
+                        or label_cell.get("financial_concept")
+                        or label_cell.get("value")
+                        or ""
+                    )
+                    concept = _normalize_persian(str(concept_text)).strip()
+                    if not concept:
+                        continue
+
+                    period_value = _extract_financial_cell_value(
+                        row_cells.get(current_column), comparative=False
+                    )
+                    year_value = _extract_financial_cell_value(
+                        row_cells.get(comparison_column), comparative=True
+                    )
+                    is_header = _is_structural_header(
+                        concept, period_value, year_value
+                    )
+                    if is_header:
+                        period_value = None
+                        year_value = None
+
+                    row_type = (
+                        label_cell.get("rowTypeName", "")
+                        or label_cell.get("row_type_name", "")
+                        or ""
+                    )
+                    if is_header or row_type in ("Header", "Title", "GroupHeader"):
+                        indent = 0
+                    elif row_type == "SubGroupHeader":
+                        indent = 1
+                    else:
+                        indent = 2
+
+                    logical_rows.append({
+                        "concept": concept,
+                        "period_value": period_value,
+                        "year_value": year_value,
+                        "row_type": row_type,
+                        "indent": indent,
+                        "is_header": is_header,
+                        "panel": panel_index,
+                        "source_row": row_key,
+                        "source_columns": {
+                            "label": label_column,
+                            "period": current_column,
+                            "year": comparison_column,
+                        },
+                    })
+
+            table_data["rows"] = logical_rows
+
             # لاگ آماری برای دیباگ
             rows_with_data = sum(
-                1 for r in rows_map.values()
+                1 for r in logical_rows
                 if r["period_value"] is not None or r["year_value"] is not None
             )
             logger.info(
-                "Table '%s': %d cells → %d rows (%d with numeric data), "
-                "address=%s, columnCode=%s",
+                "Table '%s': %d cells → %d logical rows across %d panel(s) "
+                "(%d with numeric data), address=%s, columnCode=%s",
                 (table.get("title_Fa") or "")[:40],
                 len(cells),
-                len(rows_map),
+                len(logical_rows),
+                len(label_columns),
                 rows_with_data,
                 "✓" if has_address else "✗",
                 "✓" if has_column_code else "✗",
@@ -1291,6 +1417,7 @@ def _normalize_for_match(text: str) -> str:
     t = re.sub(r"\s*\(\s*", "(", t)  # فاصله قبل (
     t = re.sub(r"\s*\)\s*", ")", t)  # فاصله بعد )
     t = re.sub(r"\s+", " ", t).strip()
+    t = re.sub(r"\s+(ها|های)(?=\s|$)", r"\1", t)
     return t
 
 
@@ -1324,39 +1451,44 @@ def _find_value_in_sheet(sheet: dict, concept_key: str, field: str = "period_val
         return None
 
     best_val = None
-    best_len = 0
+    best_score = -1
     best_match_alias = ""
     best_match_concept = ""
 
     for table in sheet.get("tables", []):
         for row in table.get("rows", []):
+            if row.get("is_header"):
+                continue
             concept = row.get("concept", "")
             concept_norm = _normalize_for_match(concept)
             if not concept_norm:
                 continue
 
             for alias_norm in normalized_aliases:
-                # فقط جهت forward: alias باید داخل concept باشد
-                # مثال صحیح: "سود ناخالص" در "سود(زیان) ناخالص"
-                # مثال اشتباه که جلوگیری می‌شود: "فروش" در "کارمزد فروش"
-                if alias_norm not in concept_norm:
+                if alias_norm == concept_norm:
+                    score = 10_000 + len(alias_norm)
+                elif alias_norm in concept_norm:
+                    match_len = len(alias_norm)
+                    min_match = max(5, len(concept_norm) * 0.5)
+                    if match_len < min_match:
+                        continue
+                    # Never use a current/non-current subtotal as the grand total.
+                    if concept_key in ("total_assets", "total_liabilities") and (
+                        "جاری" in concept_norm
+                    ):
+                        continue
+                    if concept_key == "total_equity" and "و بدهی" in concept_norm:
+                        continue
+                    score = int(100 * match_len / len(concept_norm)) + match_len
+                else:
                     continue
 
-                match_len = len(alias_norm)
-
-                # حداقل ۵۰٪ از طول concept باید match شود
-                # این جلوی "جمع بدهیهای جاری" (۱۳ کاراکتر) داخل یک concept
-                # ۳۰ کاراکتری مثل "جمع بدهیهای جاری و غیرجاری شرکت فرعی" را می‌گیرد
-                min_match = max(5, len(concept_norm) * 0.5)
-                if match_len < min_match:
-                    continue
-
-                if match_len > best_len:
+                if score > best_score:
                     val = row.get(field)
                     if val is not None:
                         try:
                             best_val = float(val)
-                            best_len = match_len
+                            best_score = score
                             best_match_alias = alias_norm
                             best_match_concept = concept_norm
                         except (ValueError, TypeError):
@@ -1386,6 +1518,21 @@ def _safe_divide(numerator, denominator) -> float | None:
         return None
 
 
+def _profit_after_expense(revenue, expense) -> float | None:
+    """Derive profit while respecting Codal's signed-expense convention."""
+    if revenue is None or expense is None:
+        return None
+    return revenue + expense if expense < 0 else revenue - expense
+
+
+def _average_balance(current, previous):
+    if current is None:
+        return None
+    if previous is None:
+        return current
+    return (float(current) + float(previous)) / 2
+
+
 def calculate_financial_ratios(parsed_report: dict) -> dict:
     """
     محاسبه ۹ شاخص مالی کلیدی.
@@ -1413,8 +1560,8 @@ def calculate_financial_ratios(parsed_report: dict) -> dict:
     equity_p = _find_value_in_sheet(balance_sheet, "total_equity")
     operating_cashflow_p = _find_value_in_sheet(cashflow_sheet, "operating_cashflow")
     
-    if gross_profit_p is None and revenue_p is not None and cogs_p is not None:
-        gross_profit_p = revenue_p - cogs_p
+    if gross_profit_p is None:
+        gross_profit_p = _profit_after_expense(revenue_p, cogs_p)
     
     # ---- مقادیر سال قبل ----
     revenue_y = _find_value_in_sheet(income_sheet, "revenue", "year_value")
@@ -1430,10 +1577,13 @@ def calculate_financial_ratios(parsed_report: dict) -> dict:
     equity_y = _find_value_in_sheet(balance_sheet, "total_equity", "year_value")
     operating_cashflow_y = _find_value_in_sheet(cashflow_sheet, "operating_cashflow", "year_value")
     
-    if gross_profit_y is None and revenue_y is not None and cogs_y is not None:
-        gross_profit_y = revenue_y - cogs_y
-    
-    return {
+    if gross_profit_y is None:
+        gross_profit_y = _profit_after_expense(revenue_y, cogs_y)
+
+    average_equity_p = _average_balance(equity_p, equity_y)
+    average_assets_p = _average_balance(total_assets_p, total_assets_y)
+
+    ratios = {
         "gross_margin": {
             "label": "حاشیه سود ناخالص",
             "formula": "سود ناخالص ÷ درآمد عملیاتی",
@@ -1478,17 +1628,19 @@ def calculate_financial_ratios(parsed_report: dict) -> dict:
         },
         "roe": {
             "label": "بازده حقوق صاحبان سهام (ROE)",
-            "formula": "سود خالص ÷ حقوق صاحبان سهام",
-            "period": _safe_divide(net_income_p, equity_p),
+            "formula": "سود خالص ÷ میانگین حقوق صاحبان سهام",
+            "period": _safe_divide(net_income_p, average_equity_p),
             "year": _safe_divide(net_income_y, equity_y),
             "type": "percent",
+            "annualized": False,
         },
         "roa": {
             "label": "بازده دارایی‌ها (ROA)",
-            "formula": "سود خالص ÷ کل دارایی",
-            "period": _safe_divide(net_income_p, total_assets_p),
+            "formula": "سود خالص ÷ میانگین کل دارایی‌ها",
+            "period": _safe_divide(net_income_p, average_assets_p),
             "year": _safe_divide(net_income_y, total_assets_y),
             "type": "percent",
+            "annualized": False,
         },
         "cashflow_quality": {
             "label": "کیفیت سود (جریان نقد عملیاتی / سود خالص)",
@@ -1498,6 +1650,55 @@ def calculate_financial_ratios(parsed_report: dict) -> dict:
             "type": "ratio",
         },
     }
+
+    # Insurance statements use a dual-panel balance sheet and sector-specific
+    # income concepts. Expose ratios whose definitions are explicit and
+    # dashboard-safe instead of forcing manufacturing ratios onto insurers.
+    net_premium_p = _find_value_in_sheet(income_sheet, "net_premium")
+    net_premium_y = _find_value_in_sheet(income_sheet, "net_premium", "year_value")
+    net_claims_p = _find_value_in_sheet(income_sheet, "net_claims_paid")
+    net_claims_y = _find_value_in_sheet(income_sheet, "net_claims_paid", "year_value")
+    investment_income_p = _find_value_in_sheet(
+        income_sheet, "insurance_investment_income"
+    )
+    investment_income_y = _find_value_in_sheet(
+        income_sheet, "insurance_investment_income", "year_value"
+    )
+    is_insurance = net_premium_p is not None or net_premium_y is not None
+    parsed_report["analysis_profile"] = "insurance" if is_insurance else "general"
+
+    if is_insurance:
+        ratios["net_claims_paid_ratio"] = {
+            "label": "نسبت خسارت پرداختی خالص",
+            "formula": "قدر مطلق خسارت و مزایای پرداختی خالص ÷ حق بیمه خالص",
+            "period": _safe_divide(
+                abs(net_claims_p) if net_claims_p is not None else None,
+                net_premium_p,
+            ),
+            "year": _safe_divide(
+                abs(net_claims_y) if net_claims_y is not None else None,
+                net_premium_y,
+            ),
+            "type": "percent",
+            "category": "insurance",
+        }
+        ratios["insurance_investment_income_ratio"] = {
+            "label": "سهم درآمد سرمایه‌گذاری بیمه‌ای",
+            "formula": "درآمد سرمایه‌گذاری منابع بیمه‌ای ÷ درآمدهای بیمه‌ای",
+            "period": _safe_divide(investment_income_p, revenue_p),
+            "year": _safe_divide(investment_income_y, revenue_y),
+            "type": "percent",
+            "category": "insurance",
+        }
+
+    for key, ratio in ratios.items():
+        ratio.setdefault("category", "general")
+        ratio["key"] = key
+        ratio["available"] = (
+            ratio.get("period") is not None or ratio.get("year") is not None
+        )
+
+    return ratios
 
 
 def get_financial_report(report_url: str) -> dict:
@@ -1512,11 +1713,28 @@ def get_financial_report(report_url: str) -> dict:
     Returns:
         dict with keys: report, ratios
     """
+    cache_key = "codal-financial:" + hashlib.sha256(
+        report_url.encode("utf-8")
+    ).hexdigest()
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        return cached_result
+
     datasource = extract_datasource(report_url)
     parsed = parse_financial_report(datasource)
     ratios = calculate_financial_ratios(parsed)
-    
-    return {
+
+    result = {
         "report": parsed,
         "ratios": ratios,
+        "dashboard": {
+            "profile": parsed.get("analysis_profile", "general"),
+            "metrics": list(ratios.values()),
+        },
     }
+    cache.set(
+        cache_key,
+        result,
+        getattr(settings, "FINANCIAL_REPORT_CACHE_TIMEOUT", 900),
+    )
+    return result

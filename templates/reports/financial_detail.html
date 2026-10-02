@@ -104,7 +104,7 @@
                 <div style="flex:1" class="fin-col-value">سال قبل</div>
             </div>
             {% for row in table.rows %}
-            <div class="fin-data-row {% if row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
+            <div class="fin-data-row {% if row.is_header or row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
                 <div style="flex:2" class="fin-data-concept">{{ row.concept|default:"—" }}</div>
                 <div style="flex:1" class="fin-data-value">{{ row.period_value|format_num }}</div>
                 <div style="flex:1" class="fin-data-value fin-old">{{ row.year_value|format_num }}</div>
@@ -126,7 +126,7 @@
                 <div style="flex:1" class="fin-col-value">سال قبل</div>
             </div>
             {% for row in table.rows %}
-            <div class="fin-data-row {% if row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
+            <div class="fin-data-row {% if row.is_header or row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
                 <div style="flex:2" class="fin-data-concept">{{ row.concept|default:"—" }}</div>
                 <div style="flex:1" class="fin-data-value">{{ row.period_value|format_num }}</div>
                 <div style="flex:1" class="fin-data-value fin-old">{{ row.year_value|format_num }}</div>
@@ -148,7 +148,7 @@
                 <div style="flex:1" class="fin-col-value">سال قبل</div>
             </div>
             {% for row in table.rows %}
-            <div class="fin-data-row {% if row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
+            <div class="fin-data-row {% if row.is_header or row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
                 <div style="flex:2" class="fin-data-concept">{{ row.concept|default:"—" }}</div>
                 <div style="flex:1" class="fin-data-value">{{ row.period_value|format_num }}</div>
                 <div style="flex:1" class="fin-data-value fin-old">{{ row.year_value|format_num }}</div>
@@ -170,7 +170,7 @@
                 <div style="flex:1" class="fin-col-value">سال قبل</div>
             </div>
             {% for row in table.rows %}
-            <div class="fin-data-row {% if row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
+            <div class="fin-data-row {% if row.is_header or row.row_type == 'Header' or row.row_type == 'Title' or row.row_type == 'GroupHeader' %}fin-row-header{% elif row.row_type == 'SubGroupHeader' %}fin-row-sub{% endif %}" style="padding-right: {% widthratio row.indent 1 20 %}px;">
                 <div style="flex:2" class="fin-data-concept">{{ row.concept|default:"—" }}</div>
                 <div style="flex:1" class="fin-data-value">{{ row.period_value|format_num }}</div>
                 <div style="flex:1" class="fin-data-value fin-old">{{ row.year_value|format_num }}</div>

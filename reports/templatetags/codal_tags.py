@@ -295,7 +295,7 @@ def format_num(value):
     try:
         num = float(value)
         if num == 0:
-            return "—"
+            return "0"
         return f"{num:,.0f}".replace(",", "٬")
     except (ValueError, TypeError):
         return "—"
