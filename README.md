@@ -46,35 +46,128 @@ codal-extractor/
 
 ## نصب و راه‌اندازی
 
-### ۱. کلون کردن پروژه
+### پیش‌نیازها
+
+- Git
+- Python 3.12 یا جدیدتر
+- دسترسی اینترنت برای نصب وابستگی‌ها و دریافت اطلاعات از کدال
+
+فایل `db.sqlite3` در مخزن Git نگهداری نمی‌شود. در هر نصب تازه، دستورات
+زیر دیتابیس را می‌سازند و فهرست شرکت‌ها را از فایل داخلی پروژه وارد می‌کنند.
+
+### Windows PowerShell
+
+```powershell
+git clone https://github.com/arminaminii/codal-extractor.git
+cd codal-extractor
+
+git switch main
+git pull --ff-only
+
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+.\.venv\Scripts\python.exe manage.py migrate
+.\.venv\Scripts\python.exe manage.py populate_companies
+.\.venv\Scripts\python.exe manage.py check
+
+$env:DJANGO_DEBUG = "True"
+.\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000
+```
+
+### Linux / macOS
+
 ```bash
 git clone https://github.com/arminaminii/codal-extractor.git
 cd codal-extractor
-```
 
-### ۲. ساخت محیط مجازی و نصب وابستگی‌ها
-```bash
-python -m venv venv
-source venv/bin/activate  # لینوکس/مک
-pip install -r requirements.txt
-```
+git switch main
+git pull --ff-only
 
-### ۳. اجرای مهاجرت‌ها
-```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
 python manage.py migrate
+python manage.py populate_companies
+python manage.py check
+
+export DJANGO_DEBUG=True
+python manage.py runserver 127.0.0.1:8000
 ```
 
-### ۴. ایجاد ادمین (اختیاری)
+پس از اجرا، سامانه در آدرس زیر در دسترس است:
+
+```text
+http://127.0.0.1:8000/
+```
+
+### به‌روزرسانی یک نسخه موجود
+
+در پوشه پروژه اجرا کنید:
+
+#### Windows PowerShell
+
+```powershell
+git switch main
+git pull --ff-only
+
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe manage.py migrate
+.\.venv\Scripts\python.exe manage.py check
+
+$env:DJANGO_DEBUG = "True"
+.\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000
+```
+
+#### Linux / macOS
+
+```bash
+git switch main
+git pull --ff-only
+
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python manage.py migrate
+python manage.py check
+
+export DJANGO_DEBUG=True
+python manage.py runserver 127.0.0.1:8000
+```
+
+### اجرای تست‌ها
+
+در Windows:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py test
+```
+
+در Linux یا macOS:
+
+```bash
+source .venv/bin/activate
+python manage.py test
+```
+
+### ساخت کاربر مدیر (اختیاری)
+
+در Windows:
+
+```powershell
+.\.venv\Scripts\python.exe manage.py createsuperuser
+```
+
+در Linux یا macOS:
+
 ```bash
 python manage.py createsuperuser
 ```
 
-### ۵. اجرای سرور توسعه
-```bash
-python manage.py runserver
-```
-
-سپس مرورگر را باز کنید و به `http://127.0.0.1:8000` بروید.
+> `DJANGO_DEBUG=True` و سرور `runserver` فقط برای توسعه محلی مناسب هستند و
+> نباید با همین تنظیمات در محیط production استفاده شوند.
 
 ## نحوه کار
 
